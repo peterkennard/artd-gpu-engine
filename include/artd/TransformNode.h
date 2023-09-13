@@ -10,7 +10,7 @@ class ARTD_API_GPU_ENGINE TransformNode
 public:
     TransformNode() {
     }
-    ~TransformNOde() {
+    ~TransformNode() {
     }
 };
 
