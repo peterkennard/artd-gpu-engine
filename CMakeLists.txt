@@ -17,12 +17,12 @@ add_subdirectory(glfw3webgpu)
 
 file(GLOB_RECURSE includes "*.h" "*.inl")
 
+file(GLOB artd-gpu-engine-sources "*.cpp" "*.c")
+# cmake is NASTY !!!
+list(FILTER artd-gpu-engine-sources EXCLUDE REGEX ".*[/\\\]main\\.cpp$")
+
 add_library("artd-gpu-engine" SHARED
-    "./GpuEngine.cpp"
-    "./GpuBufferManager.cpp"
-    "./ResourceBundle.cpp"
-    "./ResourceManagerImpl.cpp"
-    "./PixelReader.cpp"
+    ${artd-gpu-engine-sources}
     ${includes}
 )
 

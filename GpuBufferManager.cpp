@@ -4,6 +4,14 @@
 
 ARTD_BEGIN
 
+// This is needed as a similar item to
+// The Vulkan Memory Manager.  This is simple and done quickly bu good enough for now.
+// The GPUs all have limited memory manageent limited handles and limited alignment need
+// and many other things that need to be dealt with.  This is here to isolate "user" code from this.
+//
+// something like it is:  https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator
+
+
 #define INL ARTD_ALWAYS_INLINE
 // #define MIX_BUFFER_TYPES
 
