@@ -18,7 +18,7 @@ add_subdirectory(glfw3webgpu)
 file(GLOB_RECURSE includes "*.h" "*.inl")
 
 file(GLOB artd-gpu-engine-sources "*.cpp" "*.c")
-# cmake is NASTY !!!
+# cmake is NASTY !!!  https://cmake.org/cmake/help/v3.6/command/string.html#regex-specification
 list(FILTER artd-gpu-engine-sources EXCLUDE REGEX ".*[/\\\]main\\.cpp$")
 
 add_library("artd-gpu-engine" SHARED
