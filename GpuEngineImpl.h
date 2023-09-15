@@ -9,6 +9,10 @@
 #include "artd/ObjectBase.h"
 #include "artd/WaitableSignal.h"
 #include "artd/Thread.h"
+#include "artd/Viewport.h"
+#include "artd/CameraNode.h"
+#include "artd/Camera.h"
+
 
 #include "PixelReader.h"
 
@@ -39,7 +43,16 @@ protected:
     RenderPipeline pipeline = nullptr;
     SwapChain swapChain = nullptr;
 
+    // scene items
+    ObjectPtr<Viewport> viewport_;
+    ObjectPtr<CameraNode> camNode_;
+
     GpuEngineImpl() {
+        viewport_ = ObjectBase::make<Viewport>();
+        camNode_ = ObjectBase::make<CameraNode>();
+        auto cam = ObjectBase::make<Camera>();
+        camNode_->setCamera(cam);
+        cam->setViewport(viewport_);
     };
     ~GpuEngineImpl() {
         releaseResources();

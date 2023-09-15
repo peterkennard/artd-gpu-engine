@@ -34,7 +34,7 @@ target_compile_definitions( "artd-gpu-engine" PRIVATE
 if(DEV_MODE)
 	# In dev mode, we load resources from the source tree, so that when we
 	# dynamically edit resources (like shaders), these are correctly
-	# versionned.
+	# versioned.
 	target_compile_definitions(artd-gpu-engine PRIVATE
 		RESOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/resources"
 	)
@@ -48,6 +48,7 @@ endif()
 
 target_link_libraries(artd-gpu-engine PRIVATE
     artd-jlib-base
+    artd-lib-vecmath
     artd-jlib-thread
     glfw
     webgpu
