@@ -2,6 +2,7 @@
 
 #include "artd/gpu_engine.h"
 #include "artd/ObjectBase.h"
+#include "artd/vecmath.h"
 
 ARTD_BEGIN
 

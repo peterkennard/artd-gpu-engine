@@ -27,6 +27,10 @@
 
 #include <glfw3webgpu.h>
 
+// 056
+//#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+//#define GLM_FORCE_LEFT_HANDED
+
 #define WEBGPU_CPP_IMPLEMENTATION  // declares method implementations
 #include <webgpu/webgpu.hpp>
 #undef WEBGPU_CPP_IMPLEMENTATION  // declares method implementations
@@ -58,26 +62,6 @@ GpuEngine::~GpuEngine() {
 
 namespace fs = std::filesystem;
 
-
-/**
- * The same structure as in the shader, replicated in C++
- */
-
-//
-//struct MyUniforms {
-//	// offset = 0 * sizeof(vec4f) -> OK
-//	std::array<float, 4> color;
-//
-//	// offset = 16 = 4 * sizeof(f32) -> OK
-//	float time;
-//
-//	// Add padding to make sure the struct is host-shareable
-//	float _pad[3];
-//};
-// Have the compiler check byte alignment
-//static_assert(sizeof(MyUniforms) % 16 == 0);
-
-    
 int GpuEngineImpl::init(bool headless, int width, int height) {
     width_ = width;
     height_ = height;
@@ -126,25 +110,56 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
 
     AD_LOG(info) << "Requesting adapter...";
 
-    RequestAdapterOptions adapterOpts;
+    RequestAdapterOptions adapterOpts{};
     adapterOpts.compatibleSurface = surface;
-    //                              ^^^^^^^ This was 'surface'
+
     adapter = instance.requestAdapter(adapterOpts);
     std::cout << "Got adapter: " << adapter << std::endl;
 
-    std::cout << "Requesting device..." << std::endl;
+    // specify device limits - we need to figure out a dynamic or "max" way of setting this up.
+// 056
+    SupportedLimits supportedLimits;
+    adapter.getLimits(&supportedLimits);
+
+    AD_LOG(info) << "Requesting device..." << std::endl;
+    RequiredLimits requiredLimits = Default;
+    requiredLimits.limits.maxVertexAttributes = 3;
+    //                                          ^ This was a 2
+    requiredLimits.limits.maxVertexBuffers = 1;
+    requiredLimits.limits.maxBufferSize = 16 * sizeof(VertexAttributes);
+    //                                         ^^^^^^^^^^^^^^^^^^^^^^^^ This was 6 * sizeof(float)
+    requiredLimits.limits.maxVertexBufferArrayStride = sizeof(VertexAttributes);
+    //                                                        ^^^^^^^^^^^^^^^^^^^^^^^^ This was 6 * sizeof(float)
+    requiredLimits.limits.minStorageBufferOffsetAlignment = supportedLimits.limits.minStorageBufferOffsetAlignment;
+    requiredLimits.limits.minUniformBufferOffsetAlignment = supportedLimits.limits.minUniformBufferOffsetAlignment;
+    requiredLimits.limits.maxInterStageShaderComponents = 6;
+    //                                                    ^ This was a 3
+    requiredLimits.limits.maxBindGroups = 1;
+    requiredLimits.limits.maxUniformBuffersPerShaderStage = 1;
+    // Update max uniform buffer size:
+    requiredLimits.limits.maxUniformBufferBindingSize = 16 * 4 * sizeof(float);
+
+    // so is this a definition of the maximum renderer viewport size ?
+    requiredLimits.limits.maxTextureDimension1D = height_;
+    requiredLimits.limits.maxTextureDimension2D = width_;
+    requiredLimits.limits.maxTextureArrayLayers = 1;
+// e 056
+
     DeviceDescriptor deviceDesc;
     deviceDesc.label = "My Device";
     deviceDesc.requiredFeaturesCount = 0;
-    deviceDesc.requiredLimits = nullptr;
+
+    deviceDesc.requiredLimits = &requiredLimits;
     deviceDesc.defaultQueue.label = "The default queue";
     device = adapter.requestDevice(deviceDesc);
-    std::cout << "Got device: " << device << std::endl;
+    AD_LOG(info) << "Got device: " << device << std::endl;
 
     // Add an error callback for more debug info
     errorCallback_ = device.setUncapturedErrorCallback([](ErrorType type, char const* message) {
         AD_LOG(error) << "Device error: type " << type << "(" << (message ? message : "" ) << ")";
     });
+
+    shaderManager_ = ObjectBase::make<ShaderManager>(device);
 
     queue = device.getQueue();
 
@@ -199,54 +214,44 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
         AD_LOG(info) << "Swapchain created " << swapChain;
     }
 
-    std::cout << "Creating shader module..." << std::endl;
-    const char* shaderSource = R"(
-@vertex
-fn vs_main(@builtin(vertex_index) in_vertex_index: u32) -> @builtin(position) vec4<f32> {
-var p = vec2f(0.0, 0.0);
-if (in_vertex_index == 0u) {
-    p = vec2f(-0.5, -0.5);
-} else if (in_vertex_index == 1u) {
-    p = vec2f(0.5, -0.5);
-} else {
-    p = vec2f(0.0, 0.5);
-}
-return vec4f(p, 0.0, 1.0);
-}
+    // ****** shader module part
 
-@fragment
-fn fs_main() -> @location(0) vec4f {
-return vec4f(0.0, 0.4, 1.0, 1.0);
-}
-)";
-
-    ShaderModuleDescriptor shaderDesc;
-#ifdef WEBGPU_BACKEND_WGPU
-    shaderDesc.hintCount = 0;
-    shaderDesc.hints = nullptr;
-#endif
-
-    // Use the extension mechanism to load a WGSL shader source code
-    ShaderModuleWGSLDescriptor shaderCodeDesc;
-    // Set the chained struct's header
-    shaderCodeDesc.chain.next = nullptr;
-    shaderCodeDesc.chain.sType = SType::ShaderModuleWGSLDescriptor;
-    // Connect the chain
-    shaderDesc.nextInChain = &shaderCodeDesc.chain;
-
-    // Setup the actual payload of the shader code descriptor
-    shaderCodeDesc.code = shaderSource;
-
-    shaderModule = device.createShaderModule(shaderDesc);
-    AD_LOG(info) << "Shader module: " << shaderModule;
+	AD_LOG(info) << "Creating shader module...";
+	shaderModule = shaderManager_->loadShaderModule("pyramid056.wgsl");
+	AD_LOG(info)  << "Shader module: " << shaderModule;
 
     AD_LOG(info) << "Creating render pipeline...";
     RenderPipelineDescriptor pipelineDesc;
 
-    // Vertex fetch
-    // (We don't use any input buffer so far)
-    pipelineDesc.vertex.bufferCount = 0;
-    pipelineDesc.vertex.buffers = nullptr;
+
+	// Vertex fetch  ###########
+	static std::vector<VertexAttribute> vertexAttribs(3);  // should hold reference ???
+	//                                         ^ This was a 2
+
+	// Position attribute
+	vertexAttribs[0].shaderLocation = 0;
+	vertexAttribs[0].format = VertexFormat::Float32x3;
+	vertexAttribs[0].offset = 0;
+
+	// Normal attribute
+	vertexAttribs[1].shaderLocation = 1;
+	vertexAttribs[1].format = VertexFormat::Float32x3;
+	vertexAttribs[1].offset = offsetof(VertexAttributes, normal);
+
+	// Color attribute
+	vertexAttribs[2].shaderLocation = 2;
+	vertexAttribs[2].format = VertexFormat::Float32x3;
+	vertexAttribs[2].offset = offsetof(VertexAttributes, color);
+
+	VertexBufferLayout vertexBufferLayout;
+	vertexBufferLayout.attributeCount = (uint32_t)vertexAttribs.size();
+	vertexBufferLayout.attributes = vertexAttribs.data();
+	vertexBufferLayout.arrayStride = sizeof(VertexAttributes);
+	//                               ^^^^^^^^^^^^^^^^^^^^^^^^ This was 6 * sizeof(float)
+	vertexBufferLayout.stepMode = VertexStepMode::Vertex;
+
+	pipelineDesc.vertex.bufferCount = 1;
+	pipelineDesc.vertex.buffers = &vertexBufferLayout;
 
     // Vertex shader
     pipelineDesc.vertex.module = shaderModule;
@@ -270,7 +275,7 @@ return vec4f(0.0, 0.4, 1.0, 1.0);
     pipelineDesc.primitive.cullMode = CullMode::None;
 
     // Fragment shader
-    FragmentState fragmentState;
+    static FragmentState fragmentState;
     pipelineDesc.fragment = &fragmentState;
     fragmentState.module = shaderModule;
     fragmentState.entryPoint = "fs_main";
@@ -278,7 +283,7 @@ return vec4f(0.0, 0.4, 1.0, 1.0);
     fragmentState.constants = nullptr;
 
     // Configure blend state
-    BlendState blendState;
+    static BlendState blendState;
     // Usual alpha blending for the color:
     blendState.color.srcFactor = BlendFactor::SrcAlpha;
     blendState.color.dstFactor = BlendFactor::OneMinusSrcAlpha;
@@ -288,7 +293,7 @@ return vec4f(0.0, 0.4, 1.0, 1.0);
     blendState.alpha.dstFactor = BlendFactor::One;
     blendState.alpha.operation = BlendOperation::Add;
 
-    ColorTargetState colorTarget;
+    static ColorTargetState colorTarget;
     colorTarget.format = swapChainFormat;
     colorTarget.blend = &blendState;
     colorTarget.writeMask = ColorWriteMask::All; // We could write to only some of the color channels.
@@ -298,8 +303,15 @@ return vec4f(0.0, 0.4, 1.0, 1.0);
     fragmentState.targetCount = 1;
     fragmentState.targets = &colorTarget;
 
-    // Depth and stencil tests are not used here
-    pipelineDesc.depthStencil = nullptr;
+	static DepthStencilState depthStencilState = Default;
+	depthStencilState.depthCompare = CompareFunction::Less;
+	depthStencilState.depthWriteEnabled = true;
+	TextureFormat depthTextureFormat = TextureFormat::Depth24Plus;
+	depthStencilState.format = depthTextureFormat;
+	depthStencilState.stencilReadMask = 0;
+	depthStencilState.stencilWriteMask = 0;
+
+    pipelineDesc.depthStencil = &depthStencilState;
 
     // Multi-sampling
     // Samples per pixel
@@ -309,11 +321,139 @@ return vec4f(0.0, 0.4, 1.0, 1.0);
     // Default value as well (irrelevant for count = 1 anyways)
     pipelineDesc.multisample.alphaToCoverageEnabled = false;
 
+    // Create binding layout (don't forget to = Default)
+    BindGroupLayoutEntry bindingLayout = Default;
+    bindingLayout.binding = 0;
+    bindingLayout.visibility = ShaderStage::Vertex | ShaderStage::Fragment;
+    bindingLayout.buffer.type = BufferBindingType::Uniform;
+    bindingLayout.buffer.minBindingSize = sizeof(MyUniforms);
+
+    // Create a bind group layout
+    BindGroupLayoutDescriptor bindGroupLayoutDesc{};
+    bindGroupLayoutDesc.entryCount = 1;
+    bindGroupLayoutDesc.entries = &bindingLayout;
+    BindGroupLayout bindGroupLayout = device.createBindGroupLayout(bindGroupLayoutDesc);
+
+    // Create the pipeline layout
+    PipelineLayoutDescriptor layoutDesc{};
+    layoutDesc.bindGroupLayoutCount = 1;
+    layoutDesc.bindGroupLayouts = (WGPUBindGroupLayout*)&bindGroupLayout;
+    static PipelineLayout layout = device.createPipelineLayout(layoutDesc);
     // Pipeline layout
-    pipelineDesc.layout = nullptr;
+    pipelineDesc.layout = layout;
 
     pipeline = device.createRenderPipeline(pipelineDesc);
     AD_LOG(info) << "Render pipeline: " << pipeline;
+
+	// Create the depth texture
+	TextureDescriptor depthTextureDesc;
+	depthTextureDesc.dimension = TextureDimension::_2D;
+	depthTextureDesc.format = depthTextureFormat;
+	depthTextureDesc.mipLevelCount = 1;
+	depthTextureDesc.sampleCount = 1;
+	depthTextureDesc.size = {width_, height_, 1};
+	depthTextureDesc.usage = TextureUsage::RenderAttachment;
+	depthTextureDesc.viewFormatCount = 1;
+	depthTextureDesc.viewFormats = (WGPUTextureFormat*)&depthTextureFormat;
+	depthTexture = device.createTexture(depthTextureDesc);
+	std::cout << "Depth texture: " << depthTexture << std::endl;
+
+	// Create the view of the depth texture manipulated by the rasterizer
+	TextureViewDescriptor depthTextureViewDesc;
+	depthTextureViewDesc.aspect = TextureAspect::DepthOnly;
+	depthTextureViewDesc.baseArrayLayer = 0;
+	depthTextureViewDesc.arrayLayerCount = 1;
+	depthTextureViewDesc.baseMipLevel = 0;
+	depthTextureViewDesc.mipLevelCount = 1;
+	depthTextureViewDesc.dimension = TextureViewDimension::_2D;
+	depthTextureViewDesc.format = depthTextureFormat;
+	depthTextureView = depthTexture.createView(depthTextureViewDesc);
+	std::cout << "Depth texture view: " << depthTextureView << std::endl;
+
+	bool success = meshLoader_->loadGeometry("pyramid.txt", pointData, indexData, 6 /* dimensions */);
+	//                                                                             ^ This was a 3
+	if (!success) {
+		std::cerr << "Could not load geometry!" << std::endl;
+		return 1;
+	}
+
+	// Create vertex buffer
+	static BufferDescriptor bufferDesc;
+	bufferDesc.size = pointData.size() * sizeof(float);
+	bufferDesc.usage = BufferUsage::CopyDst | BufferUsage::Vertex;
+	bufferDesc.mappedAtCreation = false;
+	vertexBuffer = device.createBuffer(bufferDesc);
+	queue.writeBuffer(vertexBuffer, 0, pointData.data(), bufferDesc.size);
+
+	// int indexCount = static_cast<int>(indexData.size());
+
+	// Create index buffer
+	bufferDesc.size = indexData.size() * sizeof(float);
+	bufferDesc.usage = BufferUsage::CopyDst | BufferUsage::Index;
+	bufferDesc.mappedAtCreation = false;
+	indexBuffer = device.createBuffer(bufferDesc);
+	queue.writeBuffer(indexBuffer, 0, indexData.data(), bufferDesc.size);
+
+	// Create uniform buffer
+	bufferDesc.size = sizeof(MyUniforms);
+	bufferDesc.usage = BufferUsage::CopyDst | BufferUsage::Uniform;
+	bufferDesc.mappedAtCreation = false;
+	uniformBuffer = device.createBuffer(bufferDesc);
+
+	// Build transform matrices
+	glm::vec3 focalPoint(0.0, 0.0, -2.0);
+	
+	// Rotate the object
+	float angle1 = 2.0f; // arbitrary time
+	
+	float angle2 = 3.0f * PI / 4.0f;
+            
+	// model transform
+	S = glm::scale(glm::mat4x4(1.0), glm::vec3(0.3f));
+	T1 = glm::translate(glm::mat4x4(1.0), glm::vec3(0.5, 0.0, 0.0));
+
+	// Option C: A different way of using GLM extensions
+	glm::mat4x4 M(1.0);
+	M = glm::rotate(M, angle1, glm::vec3(0.0, 0.0, 1.0));
+	M = glm::translate(M, glm::vec3(0.5, 0.0, 0.0));
+	M = glm::scale(M, glm::vec3(0.3f));
+	uniforms.modelMatrix = M;
+
+	glm::mat4x4 V(1.0);
+	V = glm::translate(V, -focalPoint);
+	V = glm::rotate(V, -angle2, glm::vec3(1.0, 0.0, 0.0));
+	uniforms.viewMatrix = V;
+
+    float ratio = (float)width_ / (float)height_;
+    float focalLength = 2.0;
+    float near = 0.01f;
+    float far = 100.0f;
+
+	float fov = 2 * glm::atan(1.0 / focalLength);
+	uniforms.projectionMatrix = glm::perspective(fov, ratio, near, far);
+
+    AD_LOG(info) << "\nview: " << uniforms.viewMatrix
+    << "proj " << uniforms.projectionMatrix
+    << "model " << uniforms.modelMatrix;
+
+	uniforms.time = 1.0f;
+	uniforms.color = { 0.0f, 1.0f, 0.4f, 1.0f };
+	queue.writeBuffer(uniformBuffer, 0, &uniforms, sizeof(MyUniforms));
+
+	// Create a binding
+	BindGroupEntry binding{};
+	binding.binding = 0;
+	binding.buffer = uniformBuffer;
+	binding.offset = 0;
+	binding.size = sizeof(MyUniforms);
+
+	// A bind group contains one or multiple bindings
+	BindGroupDescriptor bindGroupDesc;
+	bindGroupDesc.layout = bindGroupLayout;
+	bindGroupDesc.entryCount = bindGroupLayoutDesc.entryCount;
+	bindGroupDesc.entries = &binding;
+	bindGroup = device.createBindGroup(bindGroupDesc);
+
 
     if(headless_) {
         pixelGetter_ = artd::ObjectBase::make<PixelReader>(device, width_,height_);
@@ -382,6 +522,20 @@ GpuEngineImpl::renderFrame()  {
     if(!instance) {
         return(-1);
     }
+
+    // 056
+        // Update uniform buffer
+        uniforms.time = static_cast<float>(glfwGetTime()); // glfwGetTime returns a double
+        // Only update the 1-st float of the buffer
+        queue.writeBuffer(uniformBuffer, offsetof(MyUniforms, time), &uniforms.time, sizeof(MyUniforms::time));
+
+        // Update view matrix
+        float angle1 = uniforms.time;
+        auto R1 = glm::rotate(glm::mat4x4(1.0), angle1, glm::vec3(0.0, 0.0, 1.0));
+        uniforms.modelMatrix = R1 * T1 * S;
+        queue.writeBuffer(uniformBuffer, offsetof(MyUniforms, modelMatrix), &uniforms.modelMatrix, sizeof(MyUniforms::modelMatrix));
+    // e 056
+
     TextureView nextTexture = getNextTexture();
     if (!nextTexture) {
         AD_LOG(error) << "Cannot acquire next swap chain texture";
@@ -392,18 +546,36 @@ GpuEngineImpl::renderFrame()  {
     commandEncoderDesc.label = "Command Encoder";
     CommandEncoder encoder = device.createCommandEncoder(commandEncoderDesc);
 
-    RenderPassDescriptor renderPassDesc;
+    RenderPassDescriptor renderPassDesc{};
 
-    RenderPassColorAttachment renderPassColorAttachment;
+    RenderPassColorAttachment renderPassColorAttachment{};
     renderPassColorAttachment.view = nextTexture;
     renderPassColorAttachment.resolveTarget = nullptr;
     renderPassColorAttachment.loadOp = LoadOp::Clear;
     renderPassColorAttachment.storeOp = StoreOp::Store;
-    renderPassColorAttachment.clearValue = Color{ 0.9, 0.1, 0.2, 1.0 };
+    renderPassColorAttachment.clearValue = Color{ 0.3, 0.3, 0.3, 1.0 }; // background color
     renderPassDesc.colorAttachmentCount = 1;
     renderPassDesc.colorAttachments = &renderPassColorAttachment;
 
-    renderPassDesc.depthStencilAttachment = nullptr;
+// 056
+		RenderPassDepthStencilAttachment depthStencilAttachment;
+		depthStencilAttachment.view = depthTextureView;
+		depthStencilAttachment.depthClearValue = 1.0f;
+		depthStencilAttachment.depthLoadOp = LoadOp::Clear;
+		depthStencilAttachment.depthStoreOp = StoreOp::Store;
+		depthStencilAttachment.depthReadOnly = false;
+		depthStencilAttachment.stencilClearValue = 0;
+#ifdef WEBGPU_BACKEND_WGPU
+		depthStencilAttachment.stencilLoadOp = LoadOp::Clear;
+		depthStencilAttachment.stencilStoreOp = StoreOp::Store;
+#else
+		depthStencilAttachment.stencilLoadOp = LoadOp::Undefined;
+		depthStencilAttachment.stencilStoreOp = StoreOp::Undefined;
+#endif
+		depthStencilAttachment.stencilReadOnly = true;
+		renderPassDesc.depthStencilAttachment = &depthStencilAttachment;
+// e 056
+
     renderPassDesc.timestampWriteCount = 0;
     renderPassDesc.timestampWrites = nullptr;
     RenderPassEncoder renderPass = encoder.beginRenderPass(renderPassDesc);
@@ -411,31 +583,55 @@ GpuEngineImpl::renderFrame()  {
     // In its overall outline, drawing a triangle is as simple as this:
     // Select which render pipeline to use
     renderPass.setPipeline(pipeline);
-    // Draw 1 instance of a 3-vertices shape
-    renderPass.draw(3, 1, 0, 0);
+// 056
 
-    renderPass.end();
+		renderPass.setVertexBuffer(0, vertexBuffer, 0, pointData.size() * sizeof(float));
+		renderPass.setIndexBuffer(indexBuffer, IndexFormat::Uint16, 0, indexData.size() * sizeof(uint16_t));
 
-    if(!headless_) {
-        nextTexture.release();
-    }
-    CommandBufferDescriptor cmdBufferDescriptor;
-    cmdBufferDescriptor.label = "Command buffer";
-    CommandBuffer command = encoder.finish(cmdBufferDescriptor);
-    queue.submit(command);
+		// Set binding group
+		renderPass.setBindGroup(0, bindGroup, 0, nullptr);
 
-    // device.tick();
-    // Instead of swapChain.present()
-    // saveTexture("output.png", device, targetTexture);
+		renderPass.drawIndexed((int)indexData.size(), 1, 0, 0, 0);
 
-    //saveTextureView("output.png", device, nextTexture, targetTexture.getWidth(), targetTexture.getHeight());
-    presentImage(nextTexture);
+		renderPass.end();
+
+		nextTexture.release();
+
+		CommandBufferDescriptor cmdBufferDescriptor{};
+		cmdBufferDescriptor.label = "Command buffer";
+		CommandBuffer command = encoder.finish(cmdBufferDescriptor);
+		queue.submit(command);
+// e 056
+        presentImage(nextTexture);
+
+#ifdef WEBGPU_BACKEND_DAWN
+		// Check for pending error callbacks
+		device.tick();
+#endif
+
     return(0);
 }
 
 void
 GpuEngineImpl::releaseResources() {
     if(instance) {
+
+        if(vertexBuffer) {
+            vertexBuffer.destroy();
+            vertexBuffer.release();
+        }
+        if(indexBuffer) {
+            indexBuffer.destroy();
+            indexBuffer.release();
+        }
+        if(depthTextureView) {
+            depthTextureView.release();
+        }
+        if(depthTexture) {
+            depthTexture.destroy();
+            depthTexture.release();
+        }
+        meshLoader_ = nullptr;
         device.release();
         adapter.release();
         instance.release();
@@ -468,36 +664,37 @@ extern "C" {
 
     typedef artd::GpuEngineImpl Engine;
 
-    ARTD_API_GPU_ENGINE int initGPUTest(int width, int height) {
+    int initGPUTest(int width, int height) {
         AD_LOG(print) << "\n\n\n";
         return(Engine::getInstance().init(true, width,height));
     }
 
-    ARTD_API_GPU_ENGINE int renderGPUTestFrame()  {
+    int renderGPUTestFrame()  {
         return(Engine::getInstance().renderFrame());
     }
 
-    ARTD_API_GPU_ENGINE int getPixels(int *pBuf) {
+    int getPixels(int *pBuf) {
         return(Engine::getInstance().getPixels((uint32_t*)pBuf));
     }
 
-    ARTD_API_GPU_ENGINE const int *lockPixels(int timeoutMillis) {
+    const int *lockPixels(int timeoutMillis) {
         return(Engine::getInstance().lockPixels(timeoutMillis));
     }
 
-    ARTD_API_GPU_ENGINE void unlockPixels() {
+    void unlockPixels() {
         return(Engine::getInstance().unlockPixels());
     }
 
-    ARTD_API_GPU_ENGINE void shutdownGPUTest()  {
+    void shutdownGPUTest()  {
         AD_LOG(info) << "shutting down WebGPU engine";
         Engine::getInstance().releaseResources();
     }
 
-    ARTD_API_GPU_ENGINE int runGpuTest(int, char **) {
+    int runGpuTest(int, char **) {
         Engine &test = Engine::getInstance();
         
         int ret = test.init(false, 1920, 1080);
+        //     int ret = test.init(false, 640, 480);
         if(ret != 0) {
             return(ret);
         }
