@@ -16,8 +16,8 @@ private:
     Matrix4f modelToWorld_;  // cached build from tree updates when gotten
 	// glm::mat3 normalMatrix_;  pose_ ? maybe put in drawable ?
 
-    uint32_t localTransformModified_;
-	uint32_t worldTransformModified_;
+    uint32_t localTransformModified_=3;
+	uint32_t worldTransformModified_=3;
 
 	INL bool worldTransformDirty() const {
 		return((worldTransformModified_ & 0x01) != 0);
@@ -89,11 +89,18 @@ public:
 	}
 
     INL const Matrix4f &getLocalTransform() {
+        localTransformModified_ &= (~0x01);
         return(localTransform_);
+    }
+    INL void setLocalTransform(const glm::mat4 &lt) {
+        localTransform_ = lt;
+        setLocalTransformModified();
+        setWorldTransformModified();
     }
 
     INL const Matrix4f &getLocalToWorldTransform() {
 		if (worldTransformDirty() || localTransformDirty()) {
+            worldTransformModified_ &= (~0x01);
 			modelToWorld_ = getParentToWorldMatrix() * getLocalTransform();
 		}
         return(modelToWorld_);

@@ -14,8 +14,8 @@ class ARTD_API_GPU_ENGINE Viewport {
     int width_ = -1;
     int height_ = -1;
 
-	int32_t modifiedStamp_ = -1;
-
+    int32_t modifiedStamp_ = 0;
+    
     INL void setAltered() {
         if ((modifiedStamp_ & 0x01) == 0) {
             modifiedStamp_ += 3;
@@ -51,7 +51,7 @@ public:
     }
     
     INL float getAspectWtoH() {
-        return(width_ / height_);
+        return((float)width_ / (float)height_);
     }
     
 	INL int getWidth() const {

@@ -29,7 +29,7 @@ add_library("artd-gpu-engine" SHARED
 target_compile_definitions( "artd-gpu-engine" PRIVATE
         "-DARTD_SUPPORT_STD_STRING"
         "-DGLM_FORCE_DEPTH_ZERO_TO_ONE"
-        "-DGLM_FORCE_LEFT_HANDED"
+    #    "-DGLM_FORCE_LEFT_HANDED"
         "-DBUILDING_artd_gpu_engine"
     )
 

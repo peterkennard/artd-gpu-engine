@@ -268,7 +268,8 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
     // The face orientation is defined by assuming that when looking
     // from the front of the face, its corner vertices are enumerated
     // in the counter-clockwise (CCW) order.
-    pipelineDesc.primitive.frontFace = FrontFace::CCW;
+    //    pipelineDesc.primitive.frontFace = FrontFace::CCW;
+        pipelineDesc.primitive.frontFace = FrontFace::CW;
     // But the face orientation does not matter much because we do not
     // cull (i.e. "hide") the faces pointing away from us (which is often
     // used for optimization).
@@ -370,7 +371,7 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
 	depthTextureView = depthTexture.createView(depthTextureViewDesc);
 	std::cout << "Depth texture view: " << depthTextureView << std::endl;
 
-	bool success = meshLoader_->loadGeometry("pyramid.txt", pointData, indexData, 6 /* dimensions */);
+	bool success = meshLoader_->loadGeometry("cone", pointData, indexData, 6 /* dimensions */);
 	//                                                                             ^ This was a 3
 	if (!success) {
 		std::cerr << "Could not load geometry!" << std::endl;
@@ -401,40 +402,36 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
 	uniformBuffer = device.createBuffer(bufferDesc);
 
 	// Build transform matrices
-	glm::vec3 focalPoint(0.0, 0.0, -2.0);
-	
+
 	// Rotate the object
-	float angle1 = 2.0f; // arbitrary time
-	
-	float angle2 = 3.0f * PI / 4.0f;
+	// float angle1 = 2.0f; // arbitrary time
             
 	// model transform
 	S = glm::scale(glm::mat4x4(1.0), glm::vec3(0.3f));
 	T1 = glm::translate(glm::mat4x4(1.0), glm::vec3(0.5, 0.0, 0.0));
 
-	// Option C: A different way of using GLM extensions
 	glm::mat4x4 M(1.0);
-	M = glm::rotate(M, angle1, glm::vec3(0.0, 0.0, 1.0));
-	M = glm::translate(M, glm::vec3(0.5, 0.0, 0.0));
-	M = glm::scale(M, glm::vec3(0.3f));
+	// M = glm::rotate(M, angle1, glm::vec3(0.0, 1.0, 0.0));
+	M = glm::translate(M, glm::vec3(0.0, 0.0, 1.0));
+	M = glm::scale(M, glm::vec3(0.9f));
 	uniforms.modelMatrix = M;
 
-	glm::mat4x4 V(1.0);
-	V = glm::translate(V, -focalPoint);
-	V = glm::rotate(V, -angle2, glm::vec3(1.0, 0.0, 0.0));
-	uniforms.viewMatrix = V;
-
-    float ratio = (float)width_ / (float)height_;
-    float focalLength = 2.0;
-    float near = 0.01f;
-    float far = 100.0f;
-
-	float fov = 2 * glm::atan(1.0 / focalLength);
-	uniforms.projectionMatrix = glm::perspective(fov, ratio, near, far);
-
-    AD_LOG(info) << "\nview: " << uniforms.viewMatrix
-    << "proj " << uniforms.projectionMatrix
-    << "model " << uniforms.modelMatrix;
+    // setup camera
+    {
+        glm::mat4 camPose(1.0);
+        camPose[3] = glm::vec4(0,0,-3,1);
+        camNode_->setLocalTransform(camPose);
+        auto camera = camNode_->getCamera();
+        camera->setNearClip(0.01f);
+        camera->setFarClip(100.0f);
+        camera->setFocalLength(2.0);
+        viewport_->setRect(0,0,width_,height_);
+        camera->setViewport(viewport_);
+        
+        uniforms.viewMatrix = camera->getView();
+        uniforms.projectionMatrix = camera->getProjection();
+    }
+    
 
 	uniforms.time = 1.0f;
 	uniforms.color = { 0.0f, 1.0f, 0.4f, 1.0f };
@@ -530,10 +527,10 @@ GpuEngineImpl::renderFrame()  {
         queue.writeBuffer(uniformBuffer, offsetof(MyUniforms, time), &uniforms.time, sizeof(MyUniforms::time));
 
         // Update view matrix
-        float angle1 = uniforms.time;
-        auto R1 = glm::rotate(glm::mat4x4(1.0), angle1, glm::vec3(0.0, 0.0, 1.0));
-        uniforms.modelMatrix = R1 * T1 * S;
-        queue.writeBuffer(uniformBuffer, offsetof(MyUniforms, modelMatrix), &uniforms.modelMatrix, sizeof(MyUniforms::modelMatrix));
+//        float angle1 = uniforms.time;
+//        auto R1 = glm::rotate(glm::mat4x4(1.0), angle1, glm::vec3(0.0, 0.0, 1.0));
+//        uniforms.modelMatrix = R1 * T1 * S;
+//        queue.writeBuffer(uniformBuffer, offsetof(MyUniforms, modelMatrix), &uniforms.modelMatrix, sizeof(MyUniforms::modelMatrix));
     // e 056
 
     TextureView nextTexture = getNextTexture();

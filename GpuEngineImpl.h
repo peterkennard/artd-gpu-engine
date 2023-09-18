@@ -107,18 +107,18 @@ protected:
     /**
      * The same structure as in the shader, replicated in C++
      */
-    struct MyUniforms {
-        // scene/camera global transform matrices
-        Matrix4f projectionMatrix;
-        Matrix4f viewMatrix;
-
-        // per model items
-        Matrix4f modelMatrix;
-        std::array<float, 4> color;
-
-        float time;
-        float _pad[3];  // TODO make this a macro somehow to not need assert
-    };
+//    struct MyUniforms {
+//        // scene/camera global transform matrices
+//        Matrix4f projectionMatrix;
+//        Matrix4f viewMatrix;
+//
+//        // per model items
+//        Matrix4f modelMatrix;
+//        std::array<float, 4> color;
+//
+//        float time;
+//        float _pad[3];  // TODO make this a macro somehow to not need assert
+//    };
 
     // Have the compiler check byte alignment
     static_assert(sizeof(MyUniforms) % 16 == 0);

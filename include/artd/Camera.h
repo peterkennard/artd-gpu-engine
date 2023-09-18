@@ -66,6 +66,10 @@ public:
         setViewportAltered();
     }
 
+    INL void setFocalLength(float focalLength) {
+        viewAngle_ = 2 * glm::atan(1.0 / focalLength);
+        setViewportAltered();
+    }
     const Matrix4f &getView();
 	const Matrix4f &getProjection();
 
