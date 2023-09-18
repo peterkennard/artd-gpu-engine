@@ -65,7 +65,7 @@ Camera::unProject(float mouseX, float mouseY, float mouseZ) {
 	// project from viewport pixel co-ordinates to world coordinates
 	// mouseZ should be 0 for near plane, and 1 for far plane
 	float y = viewport_->getHeight() - mouseY - 1;
-	return glm::unProject(glm::vec3(mouseX, y, mouseZ), view_, projection_, glm::vec4(0, 0, viewport_->getWidth(), viewport_->getHeight()));
+	return glm::unProject(glm::vec3(mouseX, y, mouseZ), view_, getProjection(), glm::vec4(0, 0, viewport_->getWidth(), viewport_->getHeight()));
 }
 
 Ray3f

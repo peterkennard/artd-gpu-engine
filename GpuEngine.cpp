@@ -432,7 +432,7 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
         uniforms.projectionMatrix = camera->getProjection();
     }
     
-
+    // not really needed here first thing done when rendering a frame
 	uniforms.time = 1.0f;
 	uniforms.color = { 0.0f, 1.0f, 0.4f, 1.0f };
 	queue.writeBuffer(uniformBuffer, 0, &uniforms, sizeof(MyUniforms));
@@ -520,18 +520,24 @@ GpuEngineImpl::renderFrame()  {
         return(-1);
     }
 
-    // 056
-        // Update uniform buffer
-        uniforms.time = static_cast<float>(glfwGetTime()); // glfwGetTime returns a double
-        // Only update the 1-st float of the buffer
-        queue.writeBuffer(uniformBuffer, offsetof(MyUniforms, time), &uniforms.time, sizeof(MyUniforms::time));
+    // Update per frame uniforms  TODO: now includes model matrix for one model.
+    uniforms.time = static_cast<float>(glfwGetTime()); // glfwGetTime returns a double
+    // Only update the 1-st float of the buffer
 
+    {
+        auto camera = camNode_->getCamera();
+        uniforms.viewMatrix = camera->getView();
+        uniforms.projectionMatrix = camera->getProjection();
+        
+        queue.writeBuffer(uniformBuffer, 0, &uniforms, offsetof(MyUniforms, _pad[0]));
+    }
+    
         // Update view matrix
 //        float angle1 = uniforms.time;
 //        auto R1 = glm::rotate(glm::mat4x4(1.0), angle1, glm::vec3(0.0, 0.0, 1.0));
 //        uniforms.modelMatrix = R1 * T1 * S;
 //        queue.writeBuffer(uniformBuffer, offsetof(MyUniforms, modelMatrix), &uniforms.modelMatrix, sizeof(MyUniforms::modelMatrix));
-    // e 056
+    
 
     TextureView nextTexture = getNextTexture();
     if (!nextTexture) {
