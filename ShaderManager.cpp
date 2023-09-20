@@ -102,18 +102,29 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 	let normal = normalize(in.normal);
 
-	let lightColor1 = vec3f(1.0, 0.9, 0.6);
-	let lightColor2 = vec3f(0.6, 0.9, 1.0);
-	let lightDirection1 = vec3f(0.5, -0.9, 0.1);
-	let lightDirection2 = vec3f(0.2, 0.4, 0.3);
+	let lightColor1 = vec3f(1.0, 1.0, 1.0);
+	let lightColor2 = vec3f(0.4, 0.4, 0.6);
+	let lightDirection1 = normalize(vec3f(0.5, -0.1, -0.4));
+	let lightDirection2 = normalize(vec3f(-0.5, 0.1, 0.3));
 	let shading1 = max(0.0, dot(lightDirection1, normal));
 	let shading2 = max(0.0, dot(lightDirection2, normal));
+
 	let shading = shading1 * lightColor1 + shading2 * lightColor2;
-	let color = in.color * shading;
+
+	var color = vec3(.8,0.8,0.8) * shading;
+    if(color.x > 1.0) {
+        color.x = 1.0;
+    }
+    if(color.y > 1.0) {
+        color.y = 1.0;
+    }
+    if(color.z > 1.0) {
+        color.z = 1.0;
+    }
 
 	// Gamma-correction
 	let corrected_color = pow(color, vec3f(2.2));
-	return vec4f(corrected_color, uMyUniforms.color.a);
+	return vec4f(corrected_color,1.0); // corrected_color, uMyUniforms.color.a);
 }
 )";
 

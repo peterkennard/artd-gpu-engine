@@ -1,40 +1,37 @@
+#pragma once
 //
 // Created by peterk on 3/14/19.
 //
 
-#ifndef __artd_GLBufferManager_h
-#define __artd_GLBufferManager_h
-
 #include "artd/gpu_engine.h"
 //#include "ResourceManager.h"
-#include <vector>
-#include <map>
+#include "artd/ObjectBase.h"
 
 ARTD_BEGIN
 
+class GpuEngineImpl;
 class BufferHandle;
 class GraphicsContext;
 class BufferDataImpl;
 
 #define INL ARTD_ALWAYS_INLINE
 
+class GpuEngineImpl;
 class ManagedGpuBuffer;
 
-class GpuBufferManager
+class ARTD_API_GPU_ENGINE GpuBufferManager
 {
     friend class BufferDataImpl;
-
-    std::vector<ManagedGpuBuffer*> gpuBuffers_;
-
-    static BufferDataImpl *getHandleData(BufferHandle &h);
-
-    ManagedGpuBuffer *createManagedBuffer(int size,int type);
-
+protected:
+    GpuEngineImpl &owner_;
+    GpuBufferManager(GpuEngineImpl *owner);
 public:
-    ~GpuBufferManager();
+    static ObjectPtr<GpuBufferManager> create(GpuEngineImpl *owner);
+
+    virtual ~GpuBufferManager();
 
     void onContextCreated();
-    void shutdown();
+    virtual void shutdown() = 0;
 
     BufferHandle createBuffer();
     void allocOrRealloc(BufferHandle &buf, int newSize, int type);
@@ -44,5 +41,3 @@ public:
 #undef INL
 
 ARTD_END
-
-#endif //__artd_GLBufferManager_h

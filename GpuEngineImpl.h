@@ -14,6 +14,8 @@
 #include "artd/CameraNode.h"
 #include "artd/Camera.h"
 #include "artd/CachedMeshLoader.h"
+#include "artd/GpuBufferManager.h"
+
 #include <array>
 
 
@@ -25,7 +27,6 @@ struct MyUniforms {
 	// scene frame specific items
     glm::mat4x4 projectionMatrix;
     glm::mat4x4 viewMatrix;
-
     glm::mat4x4 modelMatrix;  // model specific
 
     // below here is really frame global specific
@@ -45,6 +46,9 @@ class GpuEngineImpl
     : public GpuEngine
 {
 protected:
+
+    friend class GpuBufferManagerImpl;
+    friend class GpuBufferManager;
 
     bool headless_ = true;
     GLFWwindow* window = nullptr;
@@ -80,15 +84,19 @@ protected:
     BindGroup bindGroup = nullptr;
     Buffer uniformBuffer = nullptr;
     MyUniforms uniforms;
-    
-    // scene graph items
+
+    // resource management items
+    ObjectPtr<GpuBufferManager> bufferManager_;
     ObjectPtr<CachedMeshLoader> meshLoader_;
+    ObjectPtr<ShaderManager>    shaderManager_;
+
+    // scene graph items
     ObjectPtr<Viewport> viewport_;
     ObjectPtr<CameraNode> camNode_;
-    ObjectPtr<ShaderManager> shaderManager_;
 
     GpuEngineImpl() {
 
+        bufferManager_ = GpuBufferManager::create(this);
         viewport_ = ObjectBase::make<Viewport>();
         camNode_ = ObjectBase::make<CameraNode>();
         auto cam = ObjectBase::make<Camera>();

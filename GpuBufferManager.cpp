@@ -1,6 +1,8 @@
+#include "GpuEngineImpl.h"
 #include "artd/GpuBufferManager.h"
 #include "artd/pointer_math.h"
-//#include "UIEngineImpl.h"
+#include <vector>
+#include <map>
 
 ARTD_BEGIN
 
@@ -14,6 +16,49 @@ ARTD_BEGIN
 
 #define INL ARTD_ALWAYS_INLINE
 // #define MIX_BUFFER_TYPES
+
+using namespace wgpu;
+
+class ARTD_API_GPU_ENGINE GpuBufferManagerImpl
+    : public GpuBufferManager
+{
+public:
+    GpuBufferManagerImpl(GpuEngineImpl *owner)
+        : GpuBufferManager(owner)
+    {
+    }
+    ~GpuBufferManagerImpl() override {
+        AD_LOG(info) << "killing buffer manager";
+    }
+    virtual void shutdown() override {
+        AD_LOG(info) << "shutting down!";
+    }
+
+    std::vector<ManagedGpuBuffer*> gpuBuffers_;
+
+    static BufferDataImpl *getHandleData(BufferHandle &h);
+
+    ManagedGpuBuffer *createManagedBuffer(int size,int type);
+
+};
+
+
+GpuBufferManager::GpuBufferManager(GpuEngineImpl *owner)
+    : owner_(*owner)
+{
+}
+
+ObjectPtr<GpuBufferManager>
+GpuBufferManager::create(GpuEngineImpl *owner) {
+    return( ObjectBase::make<GpuBufferManagerImpl>(owner));
+}
+
+GpuBufferManager::~GpuBufferManager() {
+}
+
+
+
+
 
 //
 //class ManagedGpuBuffer

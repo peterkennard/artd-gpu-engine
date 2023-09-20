@@ -3,6 +3,7 @@
 #include "artd/TransformChild.h"
 #include "artd/Matrix4f.h"
 #include "artd/ObjectBase.h"
+#include <vector>
 
 #define INL ARTD_ALWAYS_INLINE
 
@@ -24,6 +25,9 @@ private:
 	}
 
 protected:
+	// Children - mostly manipulated by the container classes
+	std::vector< ObjectPtr<TransformChild> > sceneChildren_;
+
     INL void setLocalTransformModified() {
         if ((localTransformModified_ & 0x01) == 0) {
             localTransformModified_ += 3;
