@@ -717,7 +717,7 @@ extern "C" {
 
     int runGpuTest(int, char **) {
         
-        bool headless = true;
+        bool headless = false;
         
         Engine &test = Engine::getInstance();
         using namespace artd;
