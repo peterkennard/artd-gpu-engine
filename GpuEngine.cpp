@@ -1,5 +1,5 @@
 /**
- * This file is originally base on  the  "Learn WebGPU for C++" book.
+ * This file is originally based on  the  "Learn WebGPU for C++" book.
  *   https://github.com/eliemichel/LearnWebGPU
  *   'tis a major fork and redone a lot.
  * 
