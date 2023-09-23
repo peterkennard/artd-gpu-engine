@@ -15,13 +15,17 @@
 #include "artd/Camera.h"
 #include "artd/CachedMeshLoader.h"
 #include "artd/GpuBufferManager.h"
+#include "artd/TimingContext.h"
 
 #include <array>
+#include <chrono>
 
 
 #include "PixelReader.h"
 
 ARTD_BEGIN
+
+#define INL ARTD_ALWAYS_INLINE
 
 struct MyUniforms {
 	// scene frame specific items
@@ -90,9 +94,70 @@ protected:
     ObjectPtr<CachedMeshLoader> meshLoader_;
     ObjectPtr<ShaderManager>    shaderManager_;
 
+    class RenderTimingContext
+        : public TimingContext
+    {
+        double debugTime_ = 0;
+        double debugInterval_ = 1.1;
+        std::chrono::time_point<std::chrono::high_resolution_clock> firstTime_;
+        std::chrono::time_point<std::chrono::high_resolution_clock> lastHRTime_;
+
+        double deltaTime() {
+            // only executed first time ?
+            std::chrono::time_point<std::chrono::high_resolution_clock> hereNow = std::chrono::high_resolution_clock::now();
+            auto us = std::chrono::duration_cast<std::chrono::microseconds>(hereNow - lastHRTime_); // Microsecond (as integer)
+            lastHRTime_ = hereNow;
+            double usd = static_cast<double>(us.count());
+            return(usd/1000000.0);
+        }
+
+    public:
+        RenderTimingContext() {            
+        }
+
+        double currentTime() {
+            auto hereNow = std::chrono::high_resolution_clock::now();
+            auto us = std::chrono::duration_cast<std::chrono::microseconds>(hereNow - firstTime_); // Microsecond (as integer)
+            return(static_cast<double>(us.count())/1000000.0);
+        }
+
+        void init(int initialFrame)
+        {
+            frameNumber_ = initialFrame;
+            firstTime_ = lastHRTime_ = std::chrono::high_resolution_clock::now();
+            frameTime_ = currentTime(); // note this is not adjusted for epoch
+            elapsedSinceLast_ = 0;
+            debugFrame_ = false;
+        }
+
+        void tickFrame()
+        {
+            elapsedSinceLast_ = deltaTime();
+
+           // if(elapsedSinceLast_ <= .001) {
+           //     log.info(" really small frame time " + elapsedSinceLast_);
+           // }
+
+            // todo apply epocch start to this ? keep monotonic accurate for clock time ?
+            frameTime_ += elapsedSinceLast_;
+            debugTime_ += elapsedSinceLast_;
+            if(debugTime_ > debugInterval_) {
+                debugFrame_ = true;
+                debugTime_ = 0;
+            } else {
+                debugFrame_ = false;
+            }
+        }
+    };
+
+    RenderTimingContext timing_;
+
     // scene graph items
     ObjectPtr<Viewport> viewport_;
     ObjectPtr<CameraNode> camNode_;
+    ObjectPtr<TransformNode> coneGroup_;
+    // TODO: to be grouped by shader/pipeline  Just a hack for now.
+    std::vector<TransformNode*> nodes_;
 
     GpuEngineImpl() {
 
@@ -103,34 +168,13 @@ protected:
         camNode_->setCamera(cam);
         meshLoader_ = ObjectBase::make<CachedMeshLoader>();
         cam->setViewport(viewport_);
+        // TODO: we need a scene
+        coneGroup_ = ObjectBase::make<TransformNode>();
     };
     ~GpuEngineImpl() {
         releaseResources();
     }
 
-// added 056 items
-
-    static constexpr float PI = 3.14159265358979323846f;
-
-    /**
-     * The same structure as in the shader, replicated in C++
-     */
-//    struct MyUniforms {
-//        // scene/camera global transform matrices
-//        Matrix4f projectionMatrix;
-//        Matrix4f viewMatrix;
-//
-//        // per model items
-//        Matrix4f modelMatrix;
-//        std::array<float, 4> color;
-//
-//        float time;
-//        float _pad[3];  // TODO make this a macro somehow to not need assert
-//    };
-
-    // Have the compiler check byte alignment
-    static_assert(sizeof(MyUniforms) % 16 == 0);
-    
     /**
      * A structure that describes the data layout in the vertex buffer
      * We do not instantiate it but use it in `sizeof` and `offsetof`
@@ -161,6 +205,7 @@ public:
 
     int init(bool headless, int width, int height);
     int renderFrame();
+    INL const TimingContext &timing() const { return(timing_); }
     void releaseResources();
     ObjectPtr<PixelReader> pixelGetter_;
     int getPixels(uint32_t *pBuf);
@@ -168,5 +213,6 @@ public:
     void unlockPixels();
 };
 
+#undef INL
 
 ARTD_END

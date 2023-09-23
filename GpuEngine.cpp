@@ -44,7 +44,10 @@
 #include <sstream>
 #include <string>
 #include <array>
+#include <chrono>
+
 #include "artd/GpuEngine-PanamaExports.h"
+#include "artd/Matrix4f.h"
 
 
 ARTD_BEGIN
@@ -61,6 +64,7 @@ GpuEngine::~GpuEngine() {
 
 
 namespace fs = std::filesystem;
+
 
 int GpuEngineImpl::init(bool headless, int width, int height) {
     width_ = width;
@@ -401,22 +405,12 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
 
 	// Rotate the object
 	// float angle1 = 2.0f; // arbitrary time
-            
-	// model transform
-	S = glm::scale(glm::mat4x4(1.0), glm::vec3(0.3f));
-	T1 = glm::translate(glm::mat4x4(1.0), glm::vec3(0.5, 0.0, 0.0));
-
-	glm::mat4x4 M(1.0);
-	// M = glm::rotate(M, angle1, glm::vec3(0.0, 1.0, 0.0));
-	M = glm::translate(M, glm::vec3(0.0, 0.0, 1.0));
-	M = glm::scale(M, glm::vec3(0.9f));
-	uniforms.modelMatrix = M;
 
     // setup camera
     {
         glm::mat4 camPose(1.0);
         camPose = glm::rotate(camPose, glm::pi<float>()/8, glm::vec3(1.0,0,0)); // glm::vec4(1.0,0,-3,1);
-        camPose = glm::translate(camPose, glm::vec3(0,1.0,-3.1));
+        camPose = glm::translate(camPose, glm::vec3(0,1.0,-5.1));
         
         camNode_->setLocalTransform(camPose);
         auto camera = camNode_->getCamera();
@@ -454,6 +448,39 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
         pixelGetter_ = artd::ObjectBase::make<PixelReader>(device, width_,height_);
         pixelUnLockLock_.signal(); // start enabled !!
     }
+
+    // initialize a scene (hack)
+
+    {
+        Matrix4f lt(1.0);
+        
+        lt = glm::translate(lt, glm::vec3(0.0, 0.0, 2.0));
+        coneGroup_->setLocalTransform(lt);
+        
+        AD_LOG(info) << lt;
+
+        
+        glm::mat4 drot(1.0);
+        drot = glm::rotate(drot, -glm::pi<float>()/3, glm::vec3(0,1.0,0)); // rotate about Y
+        
+        Vec3f trans = glm::vec3(0.0, 0.0, .50);
+
+        AD_LOG(info) << drot;
+
+        for(int i = 0; i < 6; ++i)  {
+        
+            TransformNode *cone = (TransformNode *)coneGroup_->addChild(ObjectBase::make<TransformNode>());
+
+            lt = glm::mat4(1.0);
+            lt[3] = glm::vec4(trans,1.0);
+            
+     //       AD_LOG(info) << lt;
+            cone->setLocalTransform(lt);
+            nodes_.push_back(cone);
+            trans = glm::mat3(drot) * trans;
+        }
+    }
+
     AD_LOG(info) << "init complete !";
     return(0);
 }
@@ -509,18 +536,18 @@ GpuEngineImpl::renderFrame()  {
             AD_LOG(error) << " signal error " << ret;
             return(0);
         }
-        uniforms.time += 1;
+//        timing_.tickFrame(  );
     } else {
         glfwPollEvents();
         if(glfwWindowShouldClose(window)) {
             return(1);
         }
-        uniforms.time = static_cast<float>(glfwGetTime()); // glfwGetTime returns a double
     }
     if(!instance) {
         return(-1);
     }
-
+    // todo be able to scale time for anuimations
+    timing_.tickFrame();
     // Update per frame uniforms  TODO: now includes model matrix for one model.
     // Only update the 1-st float of the buffer
 
@@ -528,7 +555,6 @@ GpuEngineImpl::renderFrame()  {
         auto camera = camNode_->getCamera();
         uniforms.viewMatrix = camera->getView();
         uniforms.projectionMatrix = camera->getProjection();
-        queue.writeBuffer(uniformBuffer, 0, &uniforms, sizeof(MyUniforms)); // offsetof(MyUniforms, _pad[0]));
     }
 
     TextureView nextTexture = getNextTexture();
@@ -579,15 +605,28 @@ GpuEngineImpl::renderFrame()  {
     // Select which render pipeline to use
     renderPass.setPipeline(pipeline);
 
-    renderPass.setVertexBuffer(0, vertexBuffer, 0, pointData.size() * sizeof(float));
+    { // draw the models ( needs to be organized )}
+        // set the camers
+        auto camera = camNode_->getCamera();
+        uniforms.viewMatrix = camera->getView();
+        uniforms.projectionMatrix = camera->getProjection();
 
-    renderPass.setIndexBuffer(indexBuffer, IndexFormat::Uint16, 0, indexData.size() * sizeof(uint16_t));
-
-    // Set binding group
-    renderPass.setBindGroup(0, bindGroup, 0, nullptr);
-
-    renderPass.drawIndexed((int)indexData.size(), 1, 0, 0, 0);
-
+        for(size_t i = 0; i < nodes_.size(); ++i) {
+            const glm::mat4 &M = nodes_[i]->getLocalToWorldTransform();
+            uniforms.modelMatrix = M;
+            
+            AD_LOG(info) << M;
+            
+            queue.writeBuffer(uniformBuffer, 0, &uniforms, sizeof(MyUniforms)); // offsetof(MyUniforms, _pad[0]));
+            
+            renderPass.setVertexBuffer(0, vertexBuffer, 0, pointData.size() * sizeof(float));
+            renderPass.setIndexBuffer(indexBuffer, IndexFormat::Uint16, 0, indexData.size() * sizeof(uint16_t));
+            
+        }
+        // Set binding group  ? ne for eachmodel or fo the whole model group ?
+        renderPass.setBindGroup(0, bindGroup, 0, nullptr);
+        renderPass.drawIndexed((int)indexData.size(), 1, 0, 0, 0);
+    }
     renderPass.end();
 
     if(!headless_) {
@@ -605,6 +644,7 @@ GpuEngineImpl::renderFrame()  {
 		// Check for pending error callbacks
 		device.tick();
 #endif
+    timing_.init(0);
     return(0);
 }
 

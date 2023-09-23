@@ -118,7 +118,7 @@ public:
     INL bool removeChild(ObjectPtr<SceneNode> child) {
         return(removeChild(child.get()));
     }
-    void addChild(ObjectPtr<SceneNode> child);
+    SceneNode *addChild(ObjectPtr<SceneNode> child);
 
 };
 

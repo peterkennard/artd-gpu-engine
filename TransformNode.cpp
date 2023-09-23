@@ -45,11 +45,11 @@ TransformNode::setChildrenWorldTransformModified() {
     }
 }
 
-void
+SceneNode *
 TransformNode::addChild(ObjectPtr<SceneNode> child) {
     if(child) {
         TransformNode *parent = child->getParent();
-        if(parent != getParent()) {
+        if(parent != this) {
             if(parent != nullptr) {
                 parent->removeChild(child);
             }
@@ -59,6 +59,7 @@ TransformNode::addChild(ObjectPtr<SceneNode> child) {
             setChildrenWorldTransformModified();
         }
     }
+    return(child.get());
 }
 
 
