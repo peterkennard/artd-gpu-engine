@@ -1,6 +1,6 @@
 #pragma once
 
-#include "artd/TransformChild.h"
+#include "artd/SceneNode.h"
 #include "artd/Matrix4f.h"
 
 #define INL ARTD_ALWAYS_INLINE

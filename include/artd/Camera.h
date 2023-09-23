@@ -1,6 +1,6 @@
 #pragma once
 
-#include "artd/TransformChild.h"
+#include "artd/SceneNode.h"
 #include "artd/Matrix4f.h"
 #include "artd/Ray3f.h"
 #include "artd/ObjectBase.h"
@@ -14,8 +14,9 @@ class Viewport;
 class CameraNode;
 
 class ARTD_API_GPU_ENGINE Camera
-    : public TransformChild
+    : public SceneNode
 {
+    typedef SceneNode super;
 protected:
 
 	ObjectPtr<Viewport> viewport_;
@@ -43,8 +44,7 @@ protected:
 public:
 
     void setParent(CameraNode *parent) {
-        if((TransformNode*)parent != parent_) {
-            parent_ = (TransformNode*)parent;
+        if(super::setParent(parent)) {
             lastTransformStamp_ = -1;
         }
     }

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "artd/TransformChild.h"
+#include "artd/SceneNode.h"
 #include "artd/Matrix4f.h"
 #include "artd/ObjectBase.h"
 #include <vector>
@@ -10,12 +10,11 @@
 ARTD_BEGIN
 
 class ARTD_API_GPU_ENGINE TransformNode
-    : public TransformChild
+    : public SceneNode
 {
 private:
     Matrix4f localTransform_; // transform to parent space
     Matrix4f modelToWorld_;  // cached build from tree updates when gotten
-	// glm::mat3 normalMatrix_;  pose_ ? maybe put in drawable ?
 
     uint32_t localTransformModified_=3;
 	uint32_t worldTransformModified_=3;
@@ -26,7 +25,7 @@ private:
 
 protected:
 	// Children - mostly manipulated by the container classes
-	std::vector< ObjectPtr<TransformChild> > sceneChildren_;
+	std::vector< ObjectPtr<SceneNode> > sceneChildren_;
 
     INL void setLocalTransformModified() {
         if ((localTransformModified_ & 0x01) == 0) {
@@ -48,17 +47,15 @@ protected:
         }
         return(false);
     }
+    void setChildrenWorldTransformModified();
 
    	INL void setWorldTransformModified() {
    		if ((worldTransformModified_ & 0x01) == 0) {
    			worldTransformModified_ += 3;
    		}
-//           if (children_) {
-//               for (Object * child : children_) {
-//                   auto child = static_cast<Object*>(child);
-//                   child->setWorldTransformModified();
-//               }
-//           }
+   		if(hasChildren())  {
+            setChildrenWorldTransformModified();
+        }
    	}
 
     // TODO: should return reference ot value ?
@@ -72,10 +69,8 @@ protected:
 
 public:
 
-    inline TransformNode() {
-    }
-    inline ~TransformNode() {
-    }
+    TransformNode();
+    ~TransformNode();
 
     // test if lastCount is modified.
     // if modified set lastCount to the currentCount and return true
@@ -119,6 +114,11 @@ public:
         return(affineCompose(translation, rotation, glm::vec3(1, 1, 1)));
     }
 
+    bool removeChild(SceneNode *child);
+    INL bool removeChild(ObjectPtr<SceneNode> child) {
+        return(removeChild(child.get()));
+    }
+    void addChild(ObjectPtr<SceneNode> child);
 
 };
 
