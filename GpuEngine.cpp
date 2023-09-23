@@ -482,6 +482,7 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
     }
 
     AD_LOG(info) << "init complete !";
+    timing_.init(0);
     return(0);
 }
 
@@ -611,12 +612,14 @@ GpuEngineImpl::renderFrame()  {
         uniforms.viewMatrix = camera->getView();
         uniforms.projectionMatrix = camera->getProjection();
 
+        if(timing().isDebugFrame()) {
+            AD_LOG(info)  << "DEBUG FRAME " <<  timing().frameNumber();
+        }
+
         for(size_t i = 0; i < nodes_.size(); ++i) {
             const glm::mat4 &M = nodes_[i]->getLocalToWorldTransform();
             uniforms.modelMatrix = M;
-            
-            AD_LOG(info) << M;
-            
+
             queue.writeBuffer(uniformBuffer, 0, &uniforms, sizeof(MyUniforms)); // offsetof(MyUniforms, _pad[0]));
             
             renderPass.setVertexBuffer(0, vertexBuffer, 0, pointData.size() * sizeof(float));
@@ -644,7 +647,6 @@ GpuEngineImpl::renderFrame()  {
 		// Check for pending error callbacks
 		device.tick();
 #endif
-    timing_.init(0);
     return(0);
 }
 

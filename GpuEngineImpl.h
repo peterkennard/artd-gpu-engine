@@ -133,6 +133,7 @@ protected:
         void tickFrame()
         {
             elapsedSinceLast_ = deltaTime();
+            frameNumber_ = frameNumber_ + 1;
 
            // if(elapsedSinceLast_ <= .001) {
            //     log.info(" really small frame time " + elapsedSinceLast_);
