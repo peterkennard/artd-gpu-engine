@@ -25,6 +25,8 @@
 
 ARTD_BEGIN
 
+class MeshNode;
+
 #define INL ARTD_ALWAYS_INLINE
 
 struct MyUniforms {
@@ -103,7 +105,6 @@ protected:
         std::chrono::time_point<std::chrono::high_resolution_clock> lastHRTime_;
 
         double deltaTime() {
-            // only executed first time ?
             std::chrono::time_point<std::chrono::high_resolution_clock> hereNow = std::chrono::high_resolution_clock::now();
             auto us = std::chrono::duration_cast<std::chrono::microseconds>(hereNow - lastHRTime_); // Microsecond (as integer)
             lastHRTime_ = hereNow;
@@ -158,7 +159,7 @@ protected:
     ObjectPtr<CameraNode> camNode_;
     ObjectPtr<TransformNode> coneGroup_;
     // TODO: to be grouped by shader/pipeline  Just a hack for now.
-    std::vector<TransformNode*> nodes_;
+    std::vector<MeshNode*> drawables_;
 
     GpuEngineImpl() {
 

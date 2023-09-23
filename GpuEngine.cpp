@@ -48,6 +48,8 @@
 
 #include "artd/GpuEngine-PanamaExports.h"
 #include "artd/Matrix4f.h"
+#include "MeshNode.h"
+#include "DrawableMesh.h"
 
 
 ARTD_BEGIN
@@ -467,17 +469,18 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
 
         AD_LOG(info) << drot;
 
-        for(int i = 0; i < 6; ++i)  {
+        for(int i = 0; i < 2; ++i)  {
         
-            TransformNode *cone = (TransformNode *)coneGroup_->addChild(ObjectBase::make<TransformNode>());
+            MeshNode *node = (MeshNode *)coneGroup_->addChild(ObjectBase::make<MeshNode>());
 
             lt = glm::mat4(1.0);
             lt[3] = glm::vec4(trans,1.0);
-            
-     //       AD_LOG(info) << lt;
-            cone->setLocalTransform(lt);
-            nodes_.push_back(cone);
+            drawables_.push_back(node);
+            node->setLocalTransform(lt);
             trans = glm::mat3(drot) * trans;
+            
+            node->setMesh(ObjectBase::make<DrawableMesh>());
+            // DrawableMesh *mesh = node->getMesh();
         }
     }
 
@@ -616,15 +619,17 @@ GpuEngineImpl::renderFrame()  {
             AD_LOG(info)  << "DEBUG FRAME " <<  timing().frameNumber();
         }
 
-        for(size_t i = 0; i < nodes_.size(); ++i) {
-            const glm::mat4 &M = nodes_[i]->getLocalToWorldTransform();
+        for(size_t i = 0; i < drawables_.size(); ++i) {
+            const glm::mat4 &M = drawables_[i]->getLocalToWorldTransform();
             uniforms.modelMatrix = M;
 
             queue.writeBuffer(uniformBuffer, 0, &uniforms, sizeof(MyUniforms)); // offsetof(MyUniforms, _pad[0]));
-            
-            renderPass.setVertexBuffer(0, vertexBuffer, 0, pointData.size() * sizeof(float));
-            renderPass.setIndexBuffer(indexBuffer, IndexFormat::Uint16, 0, indexData.size() * sizeof(uint16_t));
-            
+
+            DrawableMesh *mesh = drawables_[i]->getMesh();
+            if(mesh) {
+                renderPass.setVertexBuffer(0, vertexBuffer, 0, pointData.size() * sizeof(float));
+                renderPass.setIndexBuffer(indexBuffer, IndexFormat::Uint16, 0, indexData.size() * sizeof(uint16_t));
+            }
         }
         // Set binding group  ? ne for eachmodel or fo the whole model group ?
         renderPass.setBindGroup(0, bindGroup, 0, nullptr);
