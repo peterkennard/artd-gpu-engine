@@ -130,17 +130,17 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
     RequiredLimits requiredLimits = Default;
     requiredLimits.limits.maxVertexAttributes = 3;
     //                                          ^ This was a 2
-    requiredLimits.limits.maxVertexBuffers = 1;
+    requiredLimits.limits.maxVertexBuffers = 1;  // max here is 8 TODO: we need the buffer namager to split these up !
     requiredLimits.limits.maxBufferSize = 128 * sizeof(VertexAttributes);
 
-    requiredLimits.limits.maxVertexBufferArrayStride = sizeof(VertexAttributes);
+    requiredLimits.limits.maxVertexBufferArrayStride = sizeof(VertexAttributes) * 2;  // cx ? does bigger hurt
 
     requiredLimits.limits.minStorageBufferOffsetAlignment = supportedLimits.limits.minStorageBufferOffsetAlignment;
     requiredLimits.limits.minUniformBufferOffsetAlignment = supportedLimits.limits.minUniformBufferOffsetAlignment;
     requiredLimits.limits.maxInterStageShaderComponents = 16; // this was 3 PK
 
-    requiredLimits.limits.maxBindGroups = 1;
-    requiredLimits.limits.maxUniformBuffersPerShaderStage = 1;
+    requiredLimits.limits.maxBindGroups = 4;  // max supported seems to be 4
+    requiredLimits.limits.maxUniformBuffersPerShaderStage = 8; // 12 is max here
     // Update max uniform buffer size:
     requiredLimits.limits.maxUniformBufferBindingSize = 16 * 4 * sizeof(float) * 2;  // 2x added enough ?
 
@@ -469,6 +469,13 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
 
         AD_LOG(info) << drot;
 
+        ObjectPtr<DrawableMesh> coneMesh = ObjectBase::make<DrawableMesh>();
+        coneMesh->setVertices(vertexBuffer);
+        coneMesh->vBufferSize_ = (uint32_t)(pointData.size() * sizeof(float));  // should be size_t ?
+        coneMesh->iBufferSize_ = (uint32_t)(indexData.size() * sizeof(uint16_t));  // should be size_t ?
+
+        coneMesh->setIndices(indexBuffer);
+
         for(int i = 0; i < 2; ++i)  {
         
             MeshNode *node = (MeshNode *)coneGroup_->addChild(ObjectBase::make<MeshNode>());
@@ -478,9 +485,7 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
             drawables_.push_back(node);
             node->setLocalTransform(lt);
             trans = glm::mat3(drot) * trans;
-            
-            node->setMesh(ObjectBase::make<DrawableMesh>());
-            // DrawableMesh *mesh = node->getMesh();
+            node->setMesh(ObjectBase::make<DrawableMesh>(coneMesh));
         }
     }
 
@@ -627,13 +632,13 @@ GpuEngineImpl::renderFrame()  {
 
             DrawableMesh *mesh = drawables_[i]->getMesh();
             if(mesh) {
-                renderPass.setVertexBuffer(0, vertexBuffer, 0, pointData.size() * sizeof(float));
-                renderPass.setIndexBuffer(indexBuffer, IndexFormat::Uint16, 0, indexData.size() * sizeof(uint16_t));
+                renderPass.setVertexBuffer(0, mesh->getVertices(), 0, mesh->verticesSize());
+                renderPass.setIndexBuffer(mesh->getIndices(), IndexFormat::Uint16, 0, mesh->indicesSize());
+                // Set binding group  ? ne for eachmodel or fo the whole model group ?
+                renderPass.setBindGroup(0, bindGroup, 0, nullptr);
+                renderPass.drawIndexed((int)indexData.size(), 1, 0, 0, 0);
             }
         }
-        // Set binding group  ? ne for eachmodel or fo the whole model group ?
-        renderPass.setBindGroup(0, bindGroup, 0, nullptr);
-        renderPass.drawIndexed((int)indexData.size(), 1, 0, 0, 0);
     }
     renderPass.end();
 

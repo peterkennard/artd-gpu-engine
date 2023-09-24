@@ -78,14 +78,18 @@ protected:
     // added 056 items
     // Mesh stuff for pyramid mesh object
 
+    Buffer vertexBuffer = nullptr;
+    Buffer indexBuffer = nullptr;
+
     std::vector<float> pointData;
     std::vector<uint16_t> indexData;
-	Buffer vertexBuffer = nullptr;
-	Buffer indexBuffer = nullptr;
+
     glm::mat4x4 T1; // object position ( translation ) as full matrix !!!
     glm::mat4x4 S;  // scaling of object
-    
-	
+
+    // global for whole scene camera lights etc
+    Buffer sceneUniformBuffer_ = nullptr;
+
     // global scene uniforms ?? )( I htink has model matrix in int too !!
     BindGroup bindGroup = nullptr;
     Buffer uniformBuffer = nullptr;
