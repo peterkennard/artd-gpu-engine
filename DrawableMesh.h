@@ -1,6 +1,7 @@
 #pragma once
 #include "artd/TransformNode.h"
 #include <webgpu/webgpu.hpp>
+#include "artd/GpuBufferManager.h"
 
 ARTD_BEGIN
 
@@ -15,35 +16,20 @@ public:
 	Buffer vertexBuffer_ = nullptr;
     uint32_t vBufferSize_ = 0;
 
-	Buffer indexBuffer_ = nullptr;
-    uint32_t iBufferSize_ = 0;
+    BufferChunk iChunk_;
+    BufferChunk vChunk_;
 
     DrawableMesh();
     ~DrawableMesh();
 
-    INL void setVertices(Buffer vb) {
-        vertexBuffer_ = vb;
+    INL const BufferChunk &indices() const {
+        return(iChunk_);
     }
 
-    INL uint32_t verticesSize() {
-        return(vBufferSize_);
-    }
-    
-    INL Buffer getVertices() {
-        return(vertexBuffer_);
+    INL const BufferChunk &vertices() const {
+        return(iChunk_);
     }
 
-    INL uint32_t indicesSize() {
-        return(iBufferSize_);
-    }
-
-    INL void setIndices(Buffer ib) {
-        indexBuffer_ = ib;
-    }
-
-    INL Buffer getIndices() {
-        return(indexBuffer_);
-    }
 };
 
 #undef INL

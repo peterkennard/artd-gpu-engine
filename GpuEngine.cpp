@@ -326,7 +326,7 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
     bindingLayout.binding = 0;
     bindingLayout.visibility = ShaderStage::Vertex | ShaderStage::Fragment;
     bindingLayout.buffer.type = BufferBindingType::Uniform;
-    bindingLayout.buffer.minBindingSize = sizeof(MyUniforms);
+    bindingLayout.buffer.minBindingSize = sizeof(SceneUniforms);
 
     // Create a bind group layout
     BindGroupLayoutDescriptor bindGroupLayoutDesc{};
@@ -374,35 +374,22 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
 	depthTextureView = depthTexture.createView(depthTextureViewDesc);
 	AD_LOG(info) << "Depth texture view: " << depthTextureView;
 
-	bool success = meshLoader_->loadGeometry("cone", pointData, indexData, 6 /* dimensions */);
-	//                                                                             ^ This was a 3
+//	bool success = meshLoader_->loadGeometry("cone", pointData, indexData, 6 /* dimensions */);
+	bool success = meshLoader_->loadGeometry("cube", pointData, indexData, 6 /* dimensions */);
+
 	if (!success) {
 		AD_LOG(info) << "Could not load geometry!";
 		return 1;
 	}
 
-	// Create vertex buffer
-	static BufferDescriptor bufferDesc;
-	bufferDesc.size = pointData.size() * sizeof(float);
-	bufferDesc.usage = BufferUsage::CopyDst | BufferUsage::Vertex;
-	bufferDesc.mappedAtCreation = false;
-	vertexBuffer = device.createBuffer(bufferDesc);
-	queue.writeBuffer(vertexBuffer, 0, pointData.data(), bufferDesc.size);
-
-	// Create index buffer
-//	bufferDesc.size = indexData.size() * sizeof(indexData[0]);
-	bufferDesc.size = indexData.size() * sizeof(float);
-	bufferDesc.usage = BufferUsage::CopyDst | BufferUsage::Index;
-	bufferDesc.mappedAtCreation = false;
-	indexBuffer = device.createBuffer(bufferDesc);
-	queue.writeBuffer(indexBuffer, 0, indexData.data(), bufferDesc.size);
-
-	// Create uniform buffer
-	bufferDesc.size = sizeof(MyUniforms);
-	bufferDesc.usage = BufferUsage::CopyDst | BufferUsage::Uniform;
-	bufferDesc.mappedAtCreation = false;
-	uniformBuffer = device.createBuffer(bufferDesc);
-
+    // Create uniform buffer
+    {
+        BufferDescriptor bufferDesc;
+        bufferDesc.size = sizeof(SceneUniforms);
+        bufferDesc.usage = BufferUsage::CopyDst | BufferUsage::Uniform;
+        bufferDesc.mappedAtCreation = false;
+        uniformBuffer = device.createBuffer(bufferDesc);
+    }
 	// Build transform matrices
 
 	// Rotate the object
@@ -429,14 +416,14 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
     // not really needed here first thing done when rendering a frame
 	uniforms.color = { 1.0f, 1.0f, 1.0f, 1.0f };
 	uniforms.time = 1.0f;
-	queue.writeBuffer(uniformBuffer, 0, &uniforms, sizeof(MyUniforms));
+	queue.writeBuffer(uniformBuffer, 0, &uniforms, sizeof(SceneUniforms));
 
 	// Create a binding
 	BindGroupEntry binding{};
 	binding.binding = 0;
 	binding.buffer = uniformBuffer;
 	binding.offset = 0;
-	binding.size = sizeof(MyUniforms);
+	binding.size = sizeof(SceneUniforms);
 
 	// A bind group contains one or multiple bindings
 	BindGroupDescriptor bindGroupDesc;
@@ -453,7 +440,7 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
 
     // initialize a scene (hack)
 
-    {
+    {        
         Matrix4f lt(1.0);
         
         lt = glm::translate(lt, glm::vec3(0.0, 0.0, 2.0));
@@ -469,12 +456,10 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
 
         AD_LOG(info) << drot;
 
-        ObjectPtr<DrawableMesh> coneMesh = ObjectBase::make<DrawableMesh>();
-        coneMesh->setVertices(vertexBuffer);
-        coneMesh->vBufferSize_ = (uint32_t)(pointData.size() * sizeof(float));  // should be size_t ?
-        coneMesh->iBufferSize_ = (uint32_t)(indexData.size() * sizeof(uint16_t));  // should be size_t ?
+        ObjectPtr<DrawableMesh> mesh = ObjectBase::make<DrawableMesh>();
 
-        coneMesh->setIndices(indexBuffer);
+        mesh->iChunk_ = bufferManager_->allocIndexChunk((int)indexData.size(), (const uint16_t *)(indexData.data()));
+        mesh->vChunk_ = bufferManager_->allocVertexChunk((int)pointData.size(), pointData.data());
 
         for(int i = 0; i < 2; ++i)  {
         
@@ -485,7 +470,7 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
             drawables_.push_back(node);
             node->setLocalTransform(lt);
             trans = glm::mat3(drot) * trans;
-            node->setMesh(ObjectBase::make<DrawableMesh>(coneMesh));
+            node->setMesh(mesh);
         }
     }
 
@@ -624,17 +609,23 @@ GpuEngineImpl::renderFrame()  {
             AD_LOG(info)  << "DEBUG FRAME " <<  timing().frameNumber();
         }
 
-        for(size_t i = 0; i < drawables_.size(); ++i) {
+        for(size_t i = 0; i < 1; /* drawables_.size(); */ ++i) {
             const glm::mat4 &M = drawables_[i]->getLocalToWorldTransform();
             uniforms.modelMatrix = M;
 
-            queue.writeBuffer(uniformBuffer, 0, &uniforms, sizeof(MyUniforms)); // offsetof(MyUniforms, _pad[0]));
+            queue.writeBuffer(uniformBuffer, 0, &uniforms, sizeof(SceneUniforms)); // offsetof(SceneUniforms, _pad[0]));
 
             DrawableMesh *mesh = drawables_[i]->getMesh();
+
+
             if(mesh) {
-                renderPass.setVertexBuffer(0, mesh->getVertices(), 0, mesh->verticesSize());
-                renderPass.setIndexBuffer(mesh->getIndices(), IndexFormat::Uint16, 0, mesh->indicesSize());
-                // Set binding group  ? ne for eachmodel or fo the whole model group ?
+                const BufferChunk &iChunk = mesh->iChunk_;
+                const BufferChunk &vChunk = mesh->vChunk_;
+
+                renderPass.setVertexBuffer(0, bufferManager_->getVertexBuffer(), vChunk.start, vChunk.size);
+                renderPass.setIndexBuffer(bufferManager_->getIndexBuffer(), IndexFormat::Uint16, iChunk.start, iChunk.size);
+                
+               // Set binding group  ? ne for eachmodel or fo the whole model group ?
                 renderPass.setBindGroup(0, bindGroup, 0, nullptr);
                 renderPass.drawIndexed((int)indexData.size(), 1, 0, 0, 0);
             }
@@ -664,14 +655,6 @@ void
 GpuEngineImpl::releaseResources() {
     if(instance) {
 
-        if(vertexBuffer) {
-            vertexBuffer.destroy();
-            vertexBuffer.release();
-        }
-        if(indexBuffer) {
-            indexBuffer.destroy();
-            indexBuffer.release();
-        }
         if(depthTextureView) {
             depthTextureView.release();
         }
@@ -763,6 +746,44 @@ public:
     }
 };
 
+ARTD_BEGIN
+
+#pragma pack(push,4) // int alignment
+
+struct Fooniforms {
+    // scene frame specific items
+    glm::mat4x4 projectionMatrix;
+    glm::mat4x4 viewMatrix;
+    glm::mat4x4 modelMatrix;  // model specific
+    int xx_[3];
+};
+
+#pragma pack(pop) // back to prior packing
+
+// Have the compiler check byte alignment
+//static_assert(sizeof(SceneUniforms) % 16 == 0);
+
+#pragma pack(push,16)
+
+struct Aligned
+    : public Fooniforms
+{
+    
+};
+
+#pragma pack(pop)
+
+static void testit() {
+    AD_LOG(info) << "\ntsize " << sizeof(Fooniforms)
+    << "\n align " << (sizeof(Aligned) % 16);
+    
+    
+    
+}
+
+
+ARTD_END
+
 extern "C" {
 
     typedef artd::GpuEngineImpl Engine;
@@ -770,6 +791,8 @@ extern "C" {
     int runGpuTest(int, char **) {
         
         bool headless = false;
+    
+        artd::testit();
         
         Engine &test = Engine::getInstance();
         using namespace artd;

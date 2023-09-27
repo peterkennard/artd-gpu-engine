@@ -22,6 +22,22 @@ using namespace wgpu;
 class ARTD_API_GPU_ENGINE GpuBufferManagerImpl
     : public GpuBufferManager
 {
+
+    int64_t nextIndexStart_ = -1;
+    int64_t nextVertexStart_ = -1;
+
+    INL Device device() {
+        return(owner_.device);
+    }
+
+    void disposeBuffer(Buffer &b) {
+        if(b) {
+            b.destroy();
+            b.release();
+            b = nullptr;
+        }
+    }
+
 public:
     GpuBufferManagerImpl(GpuEngineImpl *owner)
         : GpuBufferManager(owner)
@@ -29,9 +45,53 @@ public:
     }
     ~GpuBufferManagerImpl() override {
         AD_LOG(info) << "killing buffer manager";
+
     }
     virtual void shutdown() override {
         AD_LOG(info) << "shutting down!";
+        disposeBuffer(vertices_);
+        disposeBuffer(indices_);
+        disposeBuffer(storage_);
+    }
+
+    BufferChunk allocIndexChunk(int count, const uint16_t *data) override {
+        BufferChunk ret;
+        if(nextIndexStart_ <= 0) {
+            nextIndexStart_ = 1024;
+            BufferDescriptor bufferDesc;
+            bufferDesc.size = 0x0FFFF;
+            bufferDesc.usage = BufferUsage::CopyDst | BufferUsage::Index;
+            bufferDesc.mappedAtCreation = false;
+            indices_ = device().createBuffer(bufferDesc);
+        }
+        ret.start = nextIndexStart_;
+        size_t dataSize = count * sizeof(uint16_t);
+        ret.size = dataSize;
+        auto alignedSize = ARTD_ALIGN_UP(dataSize, 4);
+
+        owner_.queue.writeBuffer(indices_, nextIndexStart_, data, dataSize);
+        nextIndexStart_ += alignedSize;
+        return(ret);
+    }
+    BufferChunk allocVertexChunk(int count, const float *data) override {
+        BufferChunk ret;
+        if(nextVertexStart_ <= 0) {
+            nextVertexStart_ = 0;
+            BufferDescriptor bufferDesc;
+            bufferDesc.size = 0x0FFFFFF * sizeof(float);
+            bufferDesc.usage = BufferUsage::CopyDst | BufferUsage::Vertex;
+            bufferDesc.mappedAtCreation = false;
+            vertices_ = device().createBuffer(bufferDesc);
+        }
+
+        ret.start = nextVertexStart_;
+        size_t dataSize = count * sizeof(*data);
+        ret.size = dataSize;
+        auto alignedSize = ARTD_ALIGN_UP(dataSize, 4);
+
+        owner_.queue.writeBuffer(vertices_, nextVertexStart_, data, dataSize);
+        nextVertexStart_ += alignedSize;
+        return(ret);
     }
 
     std::vector<ManagedGpuBuffer*> gpuBuffers_;

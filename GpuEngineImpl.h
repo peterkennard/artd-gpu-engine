@@ -29,7 +29,7 @@ class MeshNode;
 
 #define INL ARTD_ALWAYS_INLINE
 
-struct MyUniforms {
+struct SceneUniforms {
 	// scene frame specific items
     glm::mat4x4 projectionMatrix;
     glm::mat4x4 viewMatrix;
@@ -42,7 +42,12 @@ struct MyUniforms {
 };
 
 // Have the compiler check byte alignment
-static_assert(sizeof(MyUniforms) % 16 == 0);
+static_assert(sizeof(SceneUniforms) % 16 == 0);
+
+struct PerInstanceData  {
+    glm::mat4x4 modelMatrix;  // model specific
+};
+
 
 using namespace wgpu;
 
@@ -75,12 +80,6 @@ protected:
     TextureView depthTextureView = nullptr;
     Texture depthTexture = nullptr;
 
-    // added 056 items
-    // Mesh stuff for pyramid mesh object
-
-    Buffer vertexBuffer = nullptr;
-    Buffer indexBuffer = nullptr;
-
     std::vector<float> pointData;
     std::vector<uint16_t> indexData;
 
@@ -93,8 +92,12 @@ protected:
     // global scene uniforms ?? )( I htink has model matrix in int too !!
     BindGroup bindGroup = nullptr;
     Buffer uniformBuffer = nullptr;
-    MyUniforms uniforms;
+    SceneUniforms uniforms;
 
+    // test of instancing for multiple objects
+    Buffer instanceDataBuffer_ = nullptr;
+
+    
     // resource management items
     ObjectPtr<GpuBufferManager> bufferManager_;
     ObjectPtr<CachedMeshLoader> meshLoader_;

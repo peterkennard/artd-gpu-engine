@@ -27,6 +27,107 @@ struct TriangleIndices {
 #pragma pack(0)
 
 
+static void generateSimpleCubeMesh(std::vector<float>& pointData,
+                             std::vector<uint16_t>& indexData, float extent)
+{
+    static const int vDataFloats = 8;
+
+	static const float vertData[] = {
+
+	// position				normal					u,v
+
+	// bottom
+	-1.0f,-1.0f,-1.0f,		0.0, -1.0f, 0.0f,		0.0f, 0.0f,
+     1.0f,-1.0f,-1.0f,		0.0, -1.0f, 0.0f,		1.0f, 0.0f,
+    -1.0f,-1.0f, 1.0f,		0.0, -1.0f, 0.0f,		0.0f, 1.0f,
+     1.0f,-1.0f,-1.0f,		0.0, -1.0f, 0.0f,		1.0f, 0.0f,
+     1.0f,-1.0f, 1.0f,		0.0, -1.0f, 0.0f,		1.0f, 1.0f,
+    -1.0f,-1.0f, 1.0f,		0.0, -1.0f, 0.0f,		0.0f, 1.0f,
+
+    // top
+    -1.0f, 1.0f,-1.0f,		0.0f, 1.0f, 0.0f,		0.0f, 0.0f,
+    -1.0f, 1.0f, 1.0f,		0.0f, 1.0f, 0.0f,		0.0f, 1.0f,
+     1.0f, 1.0f,-1.0f,		0.0f, 1.0f, 0.0f,		1.0f, 0.0f,
+     1.0f, 1.0f,-1.0f,		0.0f, 1.0f, 0.0f,		1.0f, 0.0f,
+    -1.0f, 1.0f, 1.0f,		0.0f, 1.0f, 0.0f,		0.0f, 1.0f,
+     1.0f, 1.0f, 1.0f,		0.0f, 1.0f, 0.0f,		1.0f, 1.0f,
+
+    // front
+    -1.0f,-1.0f, 1.0f,		0.0f, 0.0f, 1.0f,		1.0f, 0.0f,
+     1.0f,-1.0f, 1.0f,		0.0f, 0.0f, 1.0f,		0.0f, 0.0f,
+    -1.0f, 1.0f, 1.0f,		0.0f, 0.0f, 1.0f,		1.0f, 1.0f,
+     1.0f,-1.0f, 1.0f,		0.0f, 0.0f, 1.0f,		0.0f, 0.0f,
+     1.0f, 1.0f, 1.0f,		0.0f, 0.0f, 1.0f,		0.0f, 1.0f,
+    -1.0f, 1.0f, 1.0f,		0.0f, 0.0f, 1.0f,		1.0f, 1.0f,
+
+    // back
+    -1.0f,-1.0f,-1.0f,		0.0f, 0.0f, -1.0f,		0.0f, 0.0f,
+    -1.0f, 1.0f,-1.0f,		0.0f, 0.0f, -1.0f,		0.0f, 1.0f,
+     1.0f,-1.0f,-1.0f,		0.0f, 0.0f, -1.0f,		1.0f, 0.0f,
+     1.0f,-1.0f,-1.0f,		0.0f, 0.0f, -1.0f,		1.0f, 0.0f,
+    -1.0f, 1.0f,-1.0f,		0.0f, 0.0f, -1.0f,		0.0f, 1.0f,
+     1.0f, 1.0f,-1.0f,		0.0f, 0.0f, -1.0f,		1.0f, 1.0f,
+
+    // left
+    -1.0f,-1.0f, 1.0f,		-1.0f, 0.0f, 0.0f,		0.0f, 1.0f,
+    -1.0f, 1.0f,-1.0f,		-1.0f, 0.0f, 0.0f,		1.0f, 0.0f,
+    -1.0f,-1.0f,-1.0f,		-1.0f, 0.0f, 0.0f,		0.0f, 0.0f,
+    -1.0f,-1.0f, 1.0f,		-1.0f, 0.0f, 0.0f,		0.0f, 1.0f,
+    -1.0f, 1.0f, 1.0f,		-1.0f, 0.0f, 0.0f,		1.0f, 1.0f,
+    -1.0f, 1.0f,-1.0f,		-1.0f, 0.0f, 0.0f,		1.0f, 0.0f,
+
+    // right
+     1.0f,-1.0f, 1.0f,		1.0f, 0.0f, 0.0f,		1.0f, 1.0f,
+     1.0f,-1.0f,-1.0f,		1.0f, 0.0f, 0.0f,		1.0f, 0.0f,
+     1.0f, 1.0f,-1.0f,		1.0f, 0.0f, 0.0f,		0.0f, 0.0f,
+     1.0f,-1.0f, 1.0f,		1.0f, 0.0f, 0.0f,		1.0f, 1.0f,
+     1.0f, 1.0f,-1.0f,		1.0f, 0.0f, 0.0f,		0.0f, 0.0f,
+     1.0f, 1.0f, 1.0f,		1.0f, 0.0f, 0.0f,		0.0f, 1.0f
+
+	};
+
+	int vertexCount = 36 * 8;
+	int indexCount = 36 * 3;
+
+    // TODO: load directly into a gpu buffers ??
+    pointData.resize(sizeof(VertexData) * vertexCount);
+    VertexData *pVertex =  reinterpret_cast<VertexData *>(pointData.data());
+
+    indexData.resize(indexCount * sizeof(TriangleIndices));
+    TriangleIndices *pIndex = reinterpret_cast<TriangleIndices*>(indexData.data());
+
+	extent *= .5f; //1.0 extent == 1 * 1 * 1 cube
+
+    const float *pData = &vertData[0];
+
+	for (int i = 0; i < vertexCount; i += 8) {
+
+		pVertex->pos[0] = pData[0] * extent;
+		pVertex->pos[1] = pData[1] * extent;
+		pVertex->pos[2] = pData[2] * extent;
+
+		pVertex->normal[0] = vertData[3];
+		pVertex->normal[1] = vertData[4];
+		pVertex->normal[2] = vertData[5];
+
+        // tex coords
+		// pVertex->normal[] = vertData[6];
+		// pVertex->normal[2] = vertData[7];
+
+        pData += vDataFloats;
+		++pVertex;
+	}
+
+	for (int index = 0; index < indexCount; index += 3) {
+
+		pIndex->indices[0] = index;
+		pIndex->indices[1] = index + 1;
+		pIndex->indices[2] = index + 2;
+		++pIndex;
+	}
+    return;
+}
+
 static void generateConeMesh(uint32_t numSegments, std::vector<float>& pointData,
                              std::vector<uint16_t>& indexData, float height, float radius)
 {
@@ -141,11 +242,15 @@ bool
 CachedMeshLoader::loadGeometry(const fs::path& path, std::vector<float>& pointData,
                                std::vector<uint16_t>& indexData, int /* dimensions */)
 {
-    
-    
+
     if(path == "cone") {
-        generateConeMesh(12, pointData,
-                         indexData, 1.0f, .5f);
+        generateConeMesh( 12, pointData,
+                          indexData, 1.0f, .5f);
+        return(true);
+    }
+    if(path == "cube") {
+        generateSimpleCubeMesh( pointData,
+                                indexData, 1.0f);
         return(true);
     }
 
