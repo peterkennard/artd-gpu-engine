@@ -44,9 +44,12 @@ struct SceneUniforms {
 // Have the compiler check byte alignment
 static_assert(sizeof(SceneUniforms) % 16 == 0);
 
-struct PerInstanceData  {
+struct InstanceData  {
     glm::mat4x4 modelMatrix;  // model specific
 };
+
+static_assert(sizeof(InstanceData) % 16 == 0);
+
 
 
 using namespace wgpu;
@@ -80,9 +83,6 @@ protected:
     TextureView depthTextureView = nullptr;
     Texture depthTexture = nullptr;
 
-    std::vector<float> pointData;
-    std::vector<uint16_t> indexData;
-
     glm::mat4x4 T1; // object position ( translation ) as full matrix !!!
     glm::mat4x4 S;  // scaling of object
 
@@ -92,6 +92,7 @@ protected:
     // global scene uniforms ?? )( I htink has model matrix in int too !!
     BindGroup bindGroup = nullptr;
     Buffer uniformBuffer = nullptr;
+
     SceneUniforms uniforms;
 
     // test of instancing for multiple objects

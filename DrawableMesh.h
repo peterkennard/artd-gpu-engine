@@ -13,11 +13,9 @@ class DrawableMesh
 {
 public:
 
-	Buffer vertexBuffer_ = nullptr;
-    uint32_t vBufferSize_ = 0;
-
     BufferChunk iChunk_;
     BufferChunk vChunk_;
+    int indexCount_ = 0;
 
     DrawableMesh();
     ~DrawableMesh();
@@ -28,6 +26,10 @@ public:
 
     INL const BufferChunk &vertices() const {
         return(iChunk_);
+    }
+    
+    INL int indexCount() const {
+        return(indexCount_);
     }
 
 };

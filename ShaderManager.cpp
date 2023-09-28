@@ -59,10 +59,11 @@ return vec4f(0.0, 0.4, 1.0, 1.0);
 }
 )";
 
-/// ************************* shader for pyramid 056
+/// ************************* Triangle mesh shader
 
 static const char* pyramid056ShaderSource = R"(
 struct VertexInput {
+	@builtin(instance_index) instanceIx: u32,
 	@location(0) position: vec3f,
 	@location(1) normal: vec3f, // new attribute
 	@location(2) color: vec3f,
@@ -70,14 +71,14 @@ struct VertexInput {
 
 struct VertexOutput {
 	@builtin(position) position: vec4f,
-	@location(0) color: vec3f,
-	@location(1) normal: vec3f, // <--- Add a normal output
+	@location(0) normal: vec3f,
+	@location(1) texUV:  vec2f  // TBD unused now
 };
 
 /**
- * A structure holding the value of our uniforms
+ * A structure holding the value of scene global uniforms
  */
-struct MyUniforms {
+struct SceneUniforms {
     projectionMatrix: mat4x4f,
     viewMatrix: mat4x4f,
     modelMatrix: mat4x4f,
@@ -85,16 +86,28 @@ struct MyUniforms {
     time: f32,
 };
 
-// Instead of the simple uTime variable, our uniform variable is a struct
-@group(0) @binding(0) var<uniform> uMyUniforms: MyUniforms;
+struct InstanceData {
+    modelMatrix: mat4x4f,
+};
+
+// Bound variable is a struct
+@group(0) @binding(0) var<uniform> uMyUniforms: SceneUniforms;
+// TODO: not sure if this is right for the array guessing
+// @group(0) @binding(1) var<storage> instanceArray : array<InstanceData>;
+
+// TODO: from a stack overflow question
+// let grid = &voxel_volume.indirection_pool[pool_index];
+// let cell = (*grid).cells[grid_index].data;
+
+
 
 @vertex
 fn vs_main(in: VertexInput) -> VertexOutput {
 	var out: VertexOutput;
+// Use the instance index to retrieve the matrix !!  indexData[in.instanceIx]
 	out.position = uMyUniforms.projectionMatrix * uMyUniforms.viewMatrix * uMyUniforms.modelMatrix * vec4f(in.position, 1.0);
 	// Forward the normal
     out.normal = (uMyUniforms.modelMatrix * vec4f(in.normal, 0.0)).xyz;
-	out.color = in.color;
 	return out;
 }
 

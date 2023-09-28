@@ -53,6 +53,7 @@ public:
 
     virtual BufferChunk allocIndexChunk(int count, const uint16_t *data) = 0;
     virtual BufferChunk allocVertexChunk(int count, const float *data) = 0;
+    virtual wgpu::Buffer initStorageBuffer() = 0;
 
     INL wgpu::Buffer getIndexBuffer() {
         return(indices_);
@@ -60,6 +61,14 @@ public:
     
     INL wgpu::Buffer getVertexBuffer() {
         return(vertices_);
+    }
+
+    // TODO: for now this is get THE storage buffer
+    INL wgpu::Buffer getStorageBuffer() {
+        if(!storage_) {
+            initStorageBuffer();
+        }
+        return(storage_);
     }
 
     virtual void shutdown() = 0;

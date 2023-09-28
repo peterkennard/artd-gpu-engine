@@ -104,7 +104,7 @@ public:
 		}
         return(modelToWorld_);
     }
-
+    
     inline Matrix4f getWorldPose() {
         glm::mat4 rotation{};
         glm::vec3 scale{};

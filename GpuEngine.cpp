@@ -50,6 +50,7 @@
 #include "artd/Matrix4f.h"
 #include "MeshNode.h"
 #include "DrawableMesh.h"
+#include "artd/pointer_math.h"
 
 
 ARTD_BEGIN
@@ -72,11 +73,11 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
     width_ = width;
     height_ = height;
     headless_ = headless;
-
+    
     AD_LOG(info) << "initializing " << (headless_ ? "headless" : "windowed") << " test engine";
-
+    
     InstanceDescriptor instanceDescriptor = {};
-
+    
     std::vector<const char*> enabledToggles = {
         "allow_unsafe_apis",
     };
@@ -86,16 +87,16 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
     dawnToggles.enabledTogglesCount = enabledToggles.size();
     dawnToggles.enabledToggles = enabledToggles.data();
     dawnToggles.disabledTogglesCount = 0;
-
+    
     instanceDescriptor.nextInChain = &dawnToggles.chain;
-
-
+    
+    
     instance = createInstance(instanceDescriptor);
     if (!instance) {
         AD_LOG(error) << "Could not initialize WebGPU!" << std::endl;
         return 1;
     }
-
+    
     if(headless_) {
         surface = nullptr;  // done in constructor
     } else {
@@ -103,7 +104,7 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
             std::cerr << "Could not initialize GLFW!" << std::endl;
             return 1;
         }
-
+        
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
         glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
         window = glfwCreateWindow(width_, height_, "Learn WebGPU", NULL, NULL);
@@ -113,65 +114,65 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
         }
         surface = glfwGetWGPUSurface(instance, window);
     }
-
+    
     AD_LOG(info) << "Requesting adapter...";
-
+    
     RequestAdapterOptions adapterOpts{};
     adapterOpts.compatibleSurface = surface;
-
+    
     adapter = instance.requestAdapter(adapterOpts);
     std::cout << "Got adapter: " << adapter << std::endl;
-
+    
     // specify device limits - we need to figure out a dynamic or "max" way of setting this up.
     SupportedLimits supportedLimits;
     adapter.getLimits(&supportedLimits);
-
+    
     AD_LOG(info) << "Requesting device...";
     RequiredLimits requiredLimits = Default;
     requiredLimits.limits.maxVertexAttributes = 3;
     //                                          ^ This was a 2
     requiredLimits.limits.maxVertexBuffers = 1;  // max here is 8 TODO: we need the buffer namager to split these up !
     requiredLimits.limits.maxBufferSize = 128 * sizeof(VertexAttributes);
-
+    
     requiredLimits.limits.maxVertexBufferArrayStride = sizeof(VertexAttributes) * 2;  // cx ? does bigger hurt
-
+    
     requiredLimits.limits.minStorageBufferOffsetAlignment = supportedLimits.limits.minStorageBufferOffsetAlignment;
     requiredLimits.limits.minUniformBufferOffsetAlignment = supportedLimits.limits.minUniformBufferOffsetAlignment;
     requiredLimits.limits.maxInterStageShaderComponents = 16; // this was 3 PK
-
+    
     requiredLimits.limits.maxBindGroups = 4;  // max supported seems to be 4
     requiredLimits.limits.maxUniformBuffersPerShaderStage = 8; // 12 is max here
     // Update max uniform buffer size:
     requiredLimits.limits.maxUniformBufferBindingSize = 16 * 4 * sizeof(float) * 2;  // 2x added enough ?
-
+    
     // so is this a definition of the maximum renderer viewport size ?
     requiredLimits.limits.maxTextureDimension1D = height_;
     requiredLimits.limits.maxTextureDimension2D = width_;
     requiredLimits.limits.maxTextureArrayLayers = 1;
-
+    
     DeviceDescriptor deviceDesc;
     deviceDesc.label = "My Device";
     deviceDesc.requiredFeaturesCount = 0;
-
+    
     deviceDesc.requiredLimits = &requiredLimits;
     deviceDesc.defaultQueue.label = "The default queue";
     device = adapter.requestDevice(deviceDesc);
     AD_LOG(info) << "Got device: " << device;
-
+    
     // Add an error callback for more debug info
     errorCallback_ = device.setUncapturedErrorCallback([](ErrorType type, char const* message) {
         AD_LOG(error) << "Device error: type " << type << "(" << (message ? message : "" ) << ")";
     });
-
+    
     shaderManager_ = ObjectBase::make<ShaderManager>(device);
-
+    
     queue = device.getQueue();
-
+    
     TextureFormat swapChainFormat = TextureFormat::BGRA8Unorm;
-
+    
     if(headless_) {
         // No more swap chain, but still a target format and a target texture
-
+        
         TextureDescriptor targetTextureDesc;
         targetTextureDesc.label = "Render texture";
         targetTextureDesc.dimension = TextureDimension::_2D;
@@ -189,7 +190,7 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
         targetTextureDesc.viewFormats = nullptr;
         targetTextureDesc.viewFormatCount = 0;
         targetTexture = device.createTexture(targetTextureDesc);
-
+        
         TextureViewDescriptor targetTextureViewDesc;
         targetTextureViewDesc.label = "Render texture view";
         // Render to a single layer
@@ -201,13 +202,13 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
         // Render to all channels
         targetTextureViewDesc.aspect = TextureAspect::All;
         targetTextureView = targetTexture.createView(targetTextureViewDesc);
-
+        
     } else {
-
+        
         AD_LOG(info) << "Creating swapchain...";
-    #ifdef WEBGPU_BACKEND_WGPU
+#ifdef WEBGPU_BACKEND_WGPU
         swapChainFormat = surface.getPreferredFormat(adapter);
-    #endif
+#endif
         SwapChainDescriptor swapChainDesc;
         swapChainDesc.width = width_;
         swapChainDesc.height = height_;
@@ -217,51 +218,51 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
         swapChain = device.createSwapChain(surface, swapChainDesc);
         AD_LOG(info) << "Swapchain created " << swapChain;
     }
-
+    
     // ****** shader module part
-
-	AD_LOG(info) << "Creating shader module...";
-	shaderModule = shaderManager_->loadShaderModule("pyramid056.wgsl");
-	AD_LOG(info)  << "Shader module: " << shaderModule;
-
+    
+    AD_LOG(info) << "Creating shader module...";
+    shaderModule = shaderManager_->loadShaderModule("pyramid056.wgsl");
+    AD_LOG(info)  << "Shader module: " << shaderModule;
+    
     AD_LOG(info) << "Creating render pipeline...";
     RenderPipelineDescriptor pipelineDesc;
-
-	// Vertex fetch  ###########
-	static std::vector<VertexAttribute> vertexAttribs(3);  // should hold reference ???
-	//                                         ^ This was a 2
-
-	// Position attribute
-	vertexAttribs[0].shaderLocation = 0;
-	vertexAttribs[0].format = VertexFormat::Float32x3;
-	vertexAttribs[0].offset = 0;
-
-	// Normal attribute
-	vertexAttribs[1].shaderLocation = 1;
-	vertexAttribs[1].format = VertexFormat::Float32x3;
-	vertexAttribs[1].offset = offsetof(VertexAttributes, normal);
-
-	// Color attribute
-	vertexAttribs[2].shaderLocation = 2;
-	vertexAttribs[2].format = VertexFormat::Float32x3;
-	vertexAttribs[2].offset = offsetof(VertexAttributes, color);
-
-	VertexBufferLayout vertexBufferLayout;
-	vertexBufferLayout.attributeCount = (uint32_t)vertexAttribs.size();
-	vertexBufferLayout.attributes = vertexAttribs.data();
-	vertexBufferLayout.arrayStride = sizeof(VertexAttributes);
-
-	vertexBufferLayout.stepMode = VertexStepMode::Vertex;
-
-	pipelineDesc.vertex.bufferCount = 1;
-	pipelineDesc.vertex.buffers = &vertexBufferLayout;
-
+    
+    // Vertex fetch  ###########
+    static std::vector<VertexAttribute> vertexAttribs(3);  // should hold reference ???
+    //                                         ^ This was a 2
+    
+    // Position attribute
+    vertexAttribs[0].shaderLocation = 0;
+    vertexAttribs[0].format = VertexFormat::Float32x3;
+    vertexAttribs[0].offset = 0;
+    
+    // Normal attribute
+    vertexAttribs[1].shaderLocation = 1;
+    vertexAttribs[1].format = VertexFormat::Float32x3;
+    vertexAttribs[1].offset = offsetof(VertexAttributes, normal);
+    
+    // Color attribute
+    vertexAttribs[2].shaderLocation = 2;
+    vertexAttribs[2].format = VertexFormat::Float32x3;
+    vertexAttribs[2].offset = offsetof(VertexAttributes, color);
+    
+    VertexBufferLayout vertexBufferLayout;
+    vertexBufferLayout.attributeCount = (uint32_t)vertexAttribs.size();
+    vertexBufferLayout.attributes = vertexAttribs.data();
+    vertexBufferLayout.arrayStride = sizeof(VertexAttributes);
+    
+    vertexBufferLayout.stepMode = VertexStepMode::Vertex;
+    
+    pipelineDesc.vertex.bufferCount = 1;
+    pipelineDesc.vertex.buffers = &vertexBufferLayout;
+    
     // Vertex shader
     pipelineDesc.vertex.module = shaderModule;
     pipelineDesc.vertex.entryPoint = "vs_main";
     pipelineDesc.vertex.constantCount = 0;
     pipelineDesc.vertex.constants = nullptr;
-
+    
     // Each sequence of 3 vertices is considered as a triangle
     pipelineDesc.primitive.topology = PrimitiveTopology::TriangleList;
     // connected. When not specified, vertices are considered sequentially.
@@ -274,7 +275,7 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
     // cull (i.e. "hide") the faces pointing away from us (which is often
     // used for optimization).
     pipelineDesc.primitive.cullMode = CullMode::None;
-
+    
     // Fragment shader
     static FragmentState fragmentState;
     pipelineDesc.fragment = &fragmentState;
@@ -282,7 +283,7 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
     fragmentState.entryPoint = "fs_main";
     fragmentState.constantCount = 0;
     fragmentState.constants = nullptr;
-
+    
     // Configure blend state
     static BlendState blendState;
     // Usual alpha blending for the color:
@@ -293,94 +294,110 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
     blendState.alpha.srcFactor = BlendFactor::Zero;
     blendState.alpha.dstFactor = BlendFactor::One;
     blendState.alpha.operation = BlendOperation::Add;
-
+    
     static ColorTargetState colorTarget;
     colorTarget.format = swapChainFormat;
     colorTarget.blend = &blendState;
     colorTarget.writeMask = ColorWriteMask::All; // We could write to only some of the color channels.
-
+    
     // We have only one target because our render pass has only one output color
     // attachment.
     fragmentState.targetCount = 1;
     fragmentState.targets = &colorTarget;
-
+    
     TextureFormat depthTextureFormat = TextureFormat::Depth24Plus;
     
     DepthStencilState depthStencilState = Default;
-	depthStencilState.depthCompare = CompareFunction::Less;
-	depthStencilState.depthWriteEnabled = true;
-	depthStencilState.format = depthTextureFormat;
-	depthStencilState.stencilReadMask = 0;
-	depthStencilState.stencilWriteMask = 0;
-
+    depthStencilState.depthCompare = CompareFunction::Less;
+    depthStencilState.depthWriteEnabled = true;
+    depthStencilState.format = depthTextureFormat;
+    depthStencilState.stencilReadMask = 0;
+    depthStencilState.stencilWriteMask = 0;
+    
     pipelineDesc.depthStencil = &depthStencilState;
-
+    
     // Multi-sampling
     // Samples per pixel
     pipelineDesc.multisample.count = 1;
     pipelineDesc.multisample.mask = ~0u;
     pipelineDesc.multisample.alphaToCoverageEnabled = false;
-
+    
     // Create binding layout (don't forget to = Default)
-    BindGroupLayoutEntry bindingLayout = Default;
-    bindingLayout.binding = 0;
-    bindingLayout.visibility = ShaderStage::Vertex | ShaderStage::Fragment;
-    bindingLayout.buffer.type = BufferBindingType::Uniform;
-    bindingLayout.buffer.minBindingSize = sizeof(SceneUniforms);
-
+    
+    // bindGroupLayout = nullptr;
+    BindGroupLayoutEntry bindingLayouts[2];
+    {
+        bindingLayouts[0] = Default;
+        bindingLayouts[0].binding = 0;
+        bindingLayouts[0].visibility = ShaderStage::Vertex | ShaderStage::Fragment;
+        bindingLayouts[0].buffer.type = BufferBindingType::Uniform;
+        bindingLayouts[0].buffer.minBindingSize = sizeof(SceneUniforms);
+        
+        bindingLayouts[1] = Default;
+        bindingLayouts[1].binding = 1;
+        bindingLayouts[1].visibility = ShaderStage::Vertex | ShaderStage::Fragment;
+        bindingLayouts[1].buffer.type = BufferBindingType::ReadOnlyStorage;
+        bindingLayouts[1].buffer.minBindingSize = sizeof(InstanceData);
+    }
+    
     // Create a bind group layout
     BindGroupLayoutDescriptor bindGroupLayoutDesc{};
-    bindGroupLayoutDesc.entryCount = 1;
-    bindGroupLayoutDesc.entries = &bindingLayout;
-    static BindGroupLayout bindGroupLayout = device.createBindGroupLayout(bindGroupLayoutDesc);
+    bindGroupLayoutDesc.entryCount = 2;
+    bindGroupLayoutDesc.entries =  bindingLayouts;
+    BindGroupLayout bindGroupLayout = device.createBindGroupLayout(bindGroupLayoutDesc);
 
+#ifdef WEBGPU_BACKEND_DAWN
+        // Check for pending error callbacks
+        device.tick();
+#endif
+
+    
     // Create the pipeline layout
-    PipelineLayoutDescriptor layoutDesc{};
-    layoutDesc.bindGroupLayoutCount = 1;
-    layoutDesc.bindGroupLayouts = (WGPUBindGroupLayout*)&bindGroupLayout;
+    {
+        PipelineLayoutDescriptor layoutDesc{};
+        layoutDesc.bindGroupLayoutCount = 1;
+        layoutDesc.bindGroupLayouts = (WGPUBindGroupLayout*)&bindGroupLayout;
 
-    // Pipeline layout
-    static PipelineLayout layout = device.createPipelineLayout(layoutDesc);
-    pipelineDesc.layout = layout;
+
+        // Pipeline layout
+        PipelineLayout layout = device.createPipelineLayout(layoutDesc);
+        pipelineDesc.layout = layout;
+    }
 
     AD_LOG(info) << "Creating Render pipeline";
     pipeline = device.createRenderPipeline(pipelineDesc);
     AD_LOG(info) << "Render pipeline: " << pipeline;
 
     // Create the depth texture
-	static TextureDescriptor depthTextureDesc;
-	depthTextureDesc.dimension = TextureDimension::_2D;
-	depthTextureDesc.format = depthTextureFormat;
-	depthTextureDesc.mipLevelCount = 1;
-	depthTextureDesc.sampleCount = 1;
-	depthTextureDesc.size = {width_, height_, 1};
-	depthTextureDesc.usage = TextureUsage::RenderAttachment;
-	depthTextureDesc.viewFormatCount = 1;
-	depthTextureDesc.viewFormats = (WGPUTextureFormat*)&depthTextureFormat;
-	AD_LOG(info) << "Creating Depth texture";
-	depthTexture = device.createTexture(depthTextureDesc);
-	AD_LOG(info) << "Depth texture: " << depthTexture;
+	{
+        TextureDescriptor depthTextureDesc;
+        depthTextureDesc.dimension = TextureDimension::_2D;
+        depthTextureDesc.format = depthTextureFormat;
+        depthTextureDesc.mipLevelCount = 1;
+        depthTextureDesc.sampleCount = 1;
+        depthTextureDesc.size = {width_, height_, 1};
+        depthTextureDesc.usage = TextureUsage::RenderAttachment;
+        depthTextureDesc.viewFormatCount = 1;
+        depthTextureDesc.viewFormats = (WGPUTextureFormat*)&depthTextureFormat;
+        AD_LOG(info) << "Creating Depth texture";
+        depthTexture = device.createTexture(depthTextureDesc);
+        AD_LOG(info) << "Depth texture: " << depthTexture;
+    }
 
 	// Create the view of the depth texture manipulated by the rasterizer
-	TextureViewDescriptor depthTextureViewDesc;
-	depthTextureViewDesc.aspect = TextureAspect::DepthOnly;
-	depthTextureViewDesc.baseArrayLayer = 0;
-	depthTextureViewDesc.arrayLayerCount = 1;
-	depthTextureViewDesc.baseMipLevel = 0;
-	depthTextureViewDesc.mipLevelCount = 1;
-	depthTextureViewDesc.dimension = TextureViewDimension::_2D;
-	depthTextureViewDesc.format = depthTextureFormat;
-	AD_LOG(info) << "Creating Depth texture view";
-	depthTextureView = depthTexture.createView(depthTextureViewDesc);
-	AD_LOG(info) << "Depth texture view: " << depthTextureView;
-
-//	bool success = meshLoader_->loadGeometry("cone", pointData, indexData, 6 /* dimensions */);
-	bool success = meshLoader_->loadGeometry("cube", pointData, indexData, 6 /* dimensions */);
-
-	if (!success) {
-		AD_LOG(info) << "Could not load geometry!";
-		return 1;
-	}
+    {
+        TextureViewDescriptor depthTextureViewDesc;
+        depthTextureViewDesc.aspect = TextureAspect::DepthOnly;
+        depthTextureViewDesc.baseArrayLayer = 0;
+        depthTextureViewDesc.arrayLayerCount = 1;
+        depthTextureViewDesc.baseMipLevel = 0;
+        depthTextureViewDesc.mipLevelCount = 1;
+        depthTextureViewDesc.dimension = TextureViewDimension::_2D;
+        depthTextureViewDesc.format = depthTextureFormat;
+        AD_LOG(info) << "Creating Depth texture view";
+        depthTextureView = depthTexture.createView(depthTextureViewDesc);
+        AD_LOG(info) << "Depth texture view: " << depthTextureView;
+    }
 
     // Create uniform buffer
     {
@@ -390,17 +407,53 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
         bufferDesc.mappedAtCreation = false;
         uniformBuffer = device.createBuffer(bufferDesc);
     }
-	// Build transform matrices
 
-	// Rotate the object
-	// float angle1 = 2.0f; // arbitrary time
+    // not really needed here first thing done when rendering a frame
+	uniforms.color = { 1.0f, 1.0f, 1.0f, 1.0f };
+	uniforms.time = 1.0f;
+	queue.writeBuffer(uniformBuffer, 0, &uniforms, sizeof(SceneUniforms));
+
+	// Create a binding
+	{
+        BindGroupEntry bindings[2];
+
+        bindings[0].binding = 0;
+        bindings[0].buffer = uniformBuffer;
+        bindings[0].offset = 0;
+        bindings[0].size = sizeof(SceneUniforms);
+
+        // TODO: handle buffer chunks with offsets?
+        Buffer b = bufferManager_->getStorageBuffer();
+        bindings[1].binding = 1;
+        bindings[1].buffer = b;
+        bindings[1].offset = 0;
+        bindings[1].size = b.getSize();
+
+        // A bind group contains one or multiple bindings
+        BindGroupDescriptor bindGroupDesc;
+        bindGroupDesc.layout = bindGroupLayout;
+        bindGroupDesc.entryCount = 2;
+        bindGroupDesc.entries = bindings;
+        bindGroup = device.createBindGroup(bindGroupDesc);
+    }
+
+#ifdef WEBGPU_BACKEND_DAWN
+        // Check for pending error callbacks
+        device.tick();
+#endif
+
+    if(headless_) {
+        pixelGetter_ = artd::ObjectBase::make<PixelReader>(device, width_,height_);
+        pixelUnLockLock_.signal(); // start enabled !!
+    }
+
 
     // setup camera
     {
         glm::mat4 camPose(1.0);
         camPose = glm::rotate(camPose, glm::pi<float>()/8, glm::vec3(1.0,0,0)); // glm::vec4(1.0,0,-3,1);
         camPose = glm::translate(camPose, glm::vec3(0,1.0,-5.1));
-        
+
         camNode_->setLocalTransform(camPose);
         auto camera = camNode_->getCamera();
         camera->setNearClip(0.01f);
@@ -408,39 +461,24 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
         camera->setFocalLength(2.0);
         viewport_->setRect(0,0,width_,height_);
         camera->setViewport(viewport_);
-        
+
         uniforms.viewMatrix = camera->getView();
         uniforms.projectionMatrix = camera->getProjection();
     }
-    
-    // not really needed here first thing done when rendering a frame
-	uniforms.color = { 1.0f, 1.0f, 1.0f, 1.0f };
-	uniforms.time = 1.0f;
-	queue.writeBuffer(uniformBuffer, 0, &uniforms, sizeof(SceneUniforms));
-
-	// Create a binding
-	BindGroupEntry binding{};
-	binding.binding = 0;
-	binding.buffer = uniformBuffer;
-	binding.offset = 0;
-	binding.size = sizeof(SceneUniforms);
-
-	// A bind group contains one or multiple bindings
-	BindGroupDescriptor bindGroupDesc;
-	bindGroupDesc.layout = bindGroupLayout;
-	bindGroupDesc.entryCount = bindGroupLayoutDesc.entryCount;
-	bindGroupDesc.entries = &binding;
-	bindGroup = device.createBindGroup(bindGroupDesc);
-
-
-    if(headless_) {
-        pixelGetter_ = artd::ObjectBase::make<PixelReader>(device, width_,height_);
-        pixelUnLockLock_.signal(); // start enabled !!
-    }
 
     // initialize a scene (hack)
+    {
+        std::vector<float> pointData;
+        std::vector<uint16_t> indexData;
 
-    {        
+    //	bool success = meshLoader_->loadGeometry("cone", pointData, indexData, 6 /* dimensions */);
+    	bool success = meshLoader_->loadGeometry("cube", pointData, indexData, 6 /* dimensions */);
+
+    	if (!success) {
+    		AD_LOG(info) << "Could not load geometry!";
+    		return 1;
+    	}
+
         Matrix4f lt(1.0);
         
         lt = glm::translate(lt, glm::vec3(0.0, 0.0, 2.0));
@@ -457,11 +495,11 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
         AD_LOG(info) << drot;
 
         ObjectPtr<DrawableMesh> mesh = ObjectBase::make<DrawableMesh>();
-
+        mesh->indexCount_ = (int)indexData.size();
         mesh->iChunk_ = bufferManager_->allocIndexChunk((int)indexData.size(), (const uint16_t *)(indexData.data()));
         mesh->vChunk_ = bufferManager_->allocVertexChunk((int)pointData.size(), pointData.data());
 
-        for(int i = 0; i < 2; ++i)  {
+        for(int i = 0; i < 4; ++i)  {
         
             MeshNode *node = (MeshNode *)coneGroup_->addChild(ObjectBase::make<MeshNode>());
 
@@ -473,6 +511,11 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
             node->setMesh(mesh);
         }
     }
+
+#ifdef WEBGPU_BACKEND_DAWN
+        // Check for pending error callbacks
+        device.tick();
+#endif
 
     AD_LOG(info) << "init complete !";
     timing_.init(0);
@@ -522,6 +565,34 @@ GpuEngineImpl::unlockPixels()  {
 
 int
 GpuEngineImpl::renderFrame()  {
+
+    // TODO: process input and other events
+
+    {
+        Buffer iBuffer = bufferManager_->getStorageBuffer(); // TODO: needs to be resizable and compactable.
+        
+        int countLeft = (int)drawables_.size();
+        size_t offset = 0;
+        // temp buffer to upload
+        int uploadCount = (int)std::min(128,countLeft);
+
+        std::vector<InstanceData> iData(uploadCount);
+        
+        while(countLeft > 0) {
+            int i = 0;
+            
+            for(; i < uploadCount; ++i) {
+                drawables_[i]->loadInstanceData(iData[i]);
+            }
+            countLeft -= i;
+            // upload a buffer full
+            i *= sizeof(InstanceData);
+            queue.writeBuffer(iBuffer, offset, &iData[0], i );
+            offset += i;
+            uploadCount = (int)std::min(128,countLeft);
+        }
+    }
+
 
     if(headless_) {
 
@@ -609,14 +680,16 @@ GpuEngineImpl::renderFrame()  {
             AD_LOG(info)  << "DEBUG FRAME " <<  timing().frameNumber();
         }
 
-        for(size_t i = 0; i < 1; /* drawables_.size(); */ ++i) {
+        // set group for specific shader and data being used.
+        renderPass.setBindGroup(0, bindGroup, 0, nullptr);
+
+        for(size_t i = 0; i < drawables_.size(); ++i) {
             const glm::mat4 &M = drawables_[i]->getLocalToWorldTransform();
             uniforms.modelMatrix = M;
 
             queue.writeBuffer(uniformBuffer, 0, &uniforms, sizeof(SceneUniforms)); // offsetof(SceneUniforms, _pad[0]));
 
             DrawableMesh *mesh = drawables_[i]->getMesh();
-
 
             if(mesh) {
                 const BufferChunk &iChunk = mesh->iChunk_;
@@ -625,9 +698,7 @@ GpuEngineImpl::renderFrame()  {
                 renderPass.setVertexBuffer(0, bufferManager_->getVertexBuffer(), vChunk.start, vChunk.size);
                 renderPass.setIndexBuffer(bufferManager_->getIndexBuffer(), IndexFormat::Uint16, iChunk.start, iChunk.size);
                 
-               // Set binding group  ? ne for eachmodel or fo the whole model group ?
-                renderPass.setBindGroup(0, bindGroup, 0, nullptr);
-                renderPass.drawIndexed((int)indexData.size(), 1, 0, 0, 0);
+                renderPass.drawIndexed(mesh->indexCount(), 1, 0, 0, 0);
             }
         }
     }
@@ -645,8 +716,8 @@ GpuEngineImpl::renderFrame()  {
     presentImage(nextTexture);
 
 #ifdef WEBGPU_BACKEND_DAWN
-		// Check for pending error callbacks
-		device.tick();
+        // Check for pending error callbacks
+        device.tick();
 #endif
     return(0);
 }
@@ -662,6 +733,7 @@ GpuEngineImpl::releaseResources() {
             depthTexture.destroy();
             depthTexture.release();
         }
+
         meshLoader_ = nullptr;
         bufferManager_->shutdown();
         device.release();

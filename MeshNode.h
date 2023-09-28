@@ -5,6 +5,7 @@
 ARTD_BEGIN
 
 class DrawableMesh;
+struct InstanceData;
 
 class MeshNode
     : public TransformNode
@@ -13,6 +14,9 @@ class MeshNode
 public:
 
     ~MeshNode();
+
+    // load binding area for this node.  TODO: Virtual ? switch TBD
+    void loadInstanceData(InstanceData &data);
 
     void setMesh(ObjectPtr<DrawableMesh> mesh);
     DrawableMesh *getMesh() const { return(mesh_.get()); }

@@ -54,16 +54,27 @@ public:
         disposeBuffer(storage_);
     }
 
+    Buffer initStorageBuffer() override {
+        if(!storage_) {
+            BufferDescriptor bufferDesc;
+            bufferDesc.size = ARTD_ALIGN_UP(0x0FFFFFF,4);
+            bufferDesc.usage = /* BufferUsage::CopyDst | */ BufferUsage::Storage;
+            bufferDesc.mappedAtCreation = false;
+            storage_ = device().createBuffer(bufferDesc);
+        }
+        return(storage_);
+    }
+
     BufferChunk allocIndexChunk(int count, const uint16_t *data) override {
         BufferChunk ret;
         if(nextIndexStart_ <= 0) {
-            nextIndexStart_ = 1024;
-            BufferDescriptor bufferDesc;
-            bufferDesc.size = 0x0FFFF;
-            bufferDesc.usage = BufferUsage::CopyDst | BufferUsage::Index;
-            bufferDesc.mappedAtCreation = false;
-            indices_ = device().createBuffer(bufferDesc);
-        }
+                nextIndexStart_ = 1024;
+                BufferDescriptor bufferDesc;
+                bufferDesc.size = ARTD_ALIGN_UP(0x0FFFF,4);
+                bufferDesc.usage = BufferUsage::CopyDst | BufferUsage::Index;
+                bufferDesc.mappedAtCreation = false;
+                indices_ = device().createBuffer(bufferDesc);
+            }
         ret.start = nextIndexStart_;
         size_t dataSize = count * sizeof(uint16_t);
         ret.size = dataSize;
