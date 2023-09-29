@@ -271,10 +271,10 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
     // from the front of the face, its corner vertices are enumerated
     // in the counter-clockwise (CCW) order.
     //    pipelineDesc.primitive.frontFace = FrontFace::CCW;
-    pipelineDesc.primitive.frontFace = FrontFace::CCW;  // CW ?
+    pipelineDesc.primitive.frontFace = FrontFace::CCW;  // right handed convention
     // cull (i.e. "hide") the faces pointing away from us (which is often
     // used for optimization).
-    pipelineDesc.primitive.cullMode = CullMode::None;
+    pipelineDesc.primitive.cullMode = CullMode::Back;  // this is for the "opaque" pass
     
     // Fragment shader
     static FragmentState fragmentState;
@@ -586,7 +586,7 @@ GpuEngineImpl::renderFrame()  {
             angle -= (glm::pi<float>()*2);
         }
         
-        rot = glm::rotate(rot, -angle, glm::vec3(0,1.0,0)); // glm::vec4(1.0,0,-3,1);
+        rot = glm::rotate(rot, -angle, glm::vec3(1.0,0,0)); // glm::vec4(1.0,0,-3,1);
         lt[0] = rot[0];
         lt[1] = rot[1];
         lt[2] = rot[2];

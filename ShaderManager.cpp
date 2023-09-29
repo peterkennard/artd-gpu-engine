@@ -107,14 +107,14 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 // Use the instance index to retrieve the matrix !!  indexData[in.instanceIx]
 
 	out.position = uMyUniforms.projectionMatrix * uMyUniforms.viewMatrix * instanceArray[in.instanceIx].modelMatrix * vec4f(in.position, 1.0);
-	// Forward the normal
-    out.normal = (uMyUniforms.modelMatrix * vec4f(in.normal, 0.0)).xyz;
+	// Forward the normal TODO: pass in a normal "pose" matrix this uses a square root.
+    out.normal = normalize((instanceArray[in.instanceIx].modelMatrix * vec4f(in.normal, 0.0)).xyz);
 	return out;
 }
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
-	let normal = normalize(in.normal);
+	let normal = in.normal;
 
 	let lightColor1 = vec3f(1.0, 1.0, 1.0);
 	let lightColor2 = vec3f(0.4, 0.4, 0.6);
