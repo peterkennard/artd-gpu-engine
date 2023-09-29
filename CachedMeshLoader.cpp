@@ -154,9 +154,9 @@ static void generateConeMesh(uint32_t numSegments, std::vector<float>& pointData
 	glm::vec3 center = glm::vec3(0.0f, 0.0f, 0.0f);
 	pVertex->pos = center;
 
-	glm::vec3 vNormalCap = glm::normalize(glm::vec3(0.0f, -1.0f, 0.0f));
+	glm::vec3 bottomNormal = glm::normalize(glm::vec3(0.0f, -1.0f, 0.0f));
 
-	pVertex->normal = vNormalCap;
+	pVertex->normal = bottomNormal;
 
 	++triIndex;
 	++pVertex;
@@ -167,28 +167,29 @@ static void generateConeMesh(uint32_t numSegments, std::vector<float>& pointData
 	top.x = 0.0f;
 	top.y = height;
 
-    glm::vec3 bottom = glm::vec3(radius,0,0);
+    glm::vec3 bottom = glm::vec3(radius,0.,0.);
 
     // rotation matrix a 3x3 for one segment delta rotation.
     glm::mat3 segRotation(glm::rotate(glm::mat4(1.f), segAngle, glm::vec3(0.f,-1.f,0.f)));
+
 
 	// bottom cap
 	for (uint32_t face = 0; face < numSegments; ++face) {
 
 		pVertex->pos = bottom;
-		pVertex->normal = -vNormalCap;  // seems wrong - should it not be down ?? y = -1
+		pVertex->normal = bottomNormal;
         // advance to next segment
 		bottom = segRotation * bottom;
-
 //		pVertex->textCoord[0] = (float)face / (float)numSegments;
 //		pVertex->textCoord[1] = 1.0f;
 
-		++triIndex;
 		++pVertex;
 
-		pIndex->indices[0] = centerIndex;
+		pIndex->indices[0] = triIndex;
+		++triIndex;
 		pIndex->indices[1] = (face == numSegments - 1) ? 1 : triIndex;
-		pIndex->indices[2] = triIndex - 1;
+		pIndex->indices[2] = centerIndex;
+
 		++pIndex;
 	}
 
@@ -216,7 +217,7 @@ static void generateConeMesh(uint32_t numSegments, std::vector<float>& pointData
 		++triIndex;
 		++pVertex;
 
-		// Add top vertex
+		// Add top vertex (duplicate for normal !!!)
 		pVertex->pos = top;
 		pVertex->normal = topNorm;
         topNorm = segRotation * topNorm;  // rotate top normal around Y by segAngle
@@ -228,9 +229,9 @@ static void generateConeMesh(uint32_t numSegments, std::vector<float>& pointData
 		++pVertex;
 
 		// outside
-		pIndex->indices[0] = triIndex - 2; // current bottom
+		pIndex->indices[2] = triIndex - 2; // current bottom
 		pIndex->indices[1] = (face == numSegments - 1) ? (numSegments + 1) : triIndex; // next bottom
-		pIndex->indices[2] = triIndex - 1; // top
+		pIndex->indices[0] = triIndex - 1; // top
 		++pIndex;
 	}
 }
