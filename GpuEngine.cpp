@@ -704,9 +704,9 @@ GpuEngineImpl::renderFrame()  {
         uniforms.viewMatrix = camera->getView();
         uniforms.projectionMatrix = camera->getProjection();
 
-        if(timing().isDebugFrame()) {
-            AD_LOG(info)  << "DEBUG FRAME " <<  timing().frameNumber();
-        }
+//        if(timing().isDebugFrame()) {
+//            AD_LOG(info)  << "DEBUG FRAME " <<  timing().frameNumber();
+//        }
                 
         // set group for specific shader and data being used.
         renderPass.setBindGroup(0, bindGroup, 0, nullptr);
