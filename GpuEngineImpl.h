@@ -165,7 +165,7 @@ protected:
     // scene graph items
     ObjectPtr<Viewport> viewport_;
     ObjectPtr<CameraNode> camNode_;
-    ObjectPtr<TransformNode> coneGroup_;
+    ObjectPtr<TransformNode> ringGroup_;
     // TODO: to be grouped by shader/pipeline  Just a hack for now.
     std::vector<MeshNode*> drawables_;
 
@@ -179,7 +179,7 @@ protected:
         meshLoader_ = ObjectBase::make<CachedMeshLoader>();
         cam->setViewport(viewport_);
         // TODO: we need a scene
-        coneGroup_ = ObjectBase::make<TransformNode>();
+        ringGroup_ = ObjectBase::make<TransformNode>();
     };
     ~GpuEngineImpl() {
         releaseResources();

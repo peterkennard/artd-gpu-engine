@@ -58,7 +58,7 @@ public:
         if(!storage_) {
             BufferDescriptor bufferDesc;
             bufferDesc.size = ARTD_ALIGN_UP(0x0FFFFFF,4);
-            bufferDesc.usage = /* BufferUsage::CopyDst | */ BufferUsage::Storage;
+            bufferDesc.usage = BufferUsage::CopyDst | BufferUsage::Storage;
             bufferDesc.mappedAtCreation = false;
             storage_ = device().createBuffer(bufferDesc);
         }

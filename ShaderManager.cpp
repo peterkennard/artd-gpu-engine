@@ -93,7 +93,7 @@ struct InstanceData {
 // Bound variable is a struct
 @group(0) @binding(0) var<uniform> uMyUniforms: SceneUniforms;
 // TODO: not sure if this is right for the array guessing
-// @group(0) @binding(1) var<storage> instanceArray : array<InstanceData>;
+@group(0) @binding(1) var<storage> instanceArray : array<InstanceData>;
 
 // TODO: from a stack overflow question
 // let grid = &voxel_volume.indirection_pool[pool_index];
@@ -105,7 +105,8 @@ struct InstanceData {
 fn vs_main(in: VertexInput) -> VertexOutput {
 	var out: VertexOutput;
 // Use the instance index to retrieve the matrix !!  indexData[in.instanceIx]
-	out.position = uMyUniforms.projectionMatrix * uMyUniforms.viewMatrix * uMyUniforms.modelMatrix * vec4f(in.position, 1.0);
+
+	out.position = uMyUniforms.projectionMatrix * uMyUniforms.viewMatrix * instanceArray[in.instanceIx].modelMatrix * vec4f(in.position, 1.0);
 	// Forward the normal
     out.normal = (uMyUniforms.modelMatrix * vec4f(in.normal, 0.0)).xyz;
 	return out;

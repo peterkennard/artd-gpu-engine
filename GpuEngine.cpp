@@ -107,7 +107,7 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
         
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
         glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-        window = glfwCreateWindow(width_, height_, "Learn WebGPU", NULL, NULL);
+        window = glfwCreateWindow(width_, height_, "WebGPU Engine", NULL, NULL);
         if (!window) {
             AD_LOG(info) << "Could not open window!";
             return 1;
@@ -413,7 +413,7 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
 	uniforms.time = 1.0f;
 	queue.writeBuffer(uniformBuffer, 0, &uniforms, sizeof(SceneUniforms));
 
-	// Create a binding
+	// Create bindings for test objects
 	{
         BindGroupEntry bindings[2];
 
@@ -466,13 +466,13 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
         uniforms.projectionMatrix = camera->getProjection();
     }
 
-    // initialize a scene (hack)
+    // initialize a scene (big hack)
     {
         std::vector<float> pointData;
         std::vector<uint16_t> indexData;
 
-    //	bool success = meshLoader_->loadGeometry("cone", pointData, indexData, 6 /* dimensions */);
-    	bool success = meshLoader_->loadGeometry("cube", pointData, indexData, 6 /* dimensions */);
+    	bool success = meshLoader_->loadGeometry("cone", pointData, indexData, 6 /* dimensions */);
+    //	bool success = meshLoader_->loadGeometry("cube", pointData, indexData, 6 /* dimensions */);
 
     	if (!success) {
     		AD_LOG(info) << "Could not load geometry!";
@@ -482,15 +482,15 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
         Matrix4f lt(1.0);
         
         lt = glm::translate(lt, glm::vec3(0.0, 0.0, 2.0));
-        coneGroup_->setLocalTransform(lt);
+        ringGroup_->setLocalTransform(lt);
         
         AD_LOG(info) << lt;
 
         
         glm::mat4 drot(1.0);
-        drot = glm::rotate(drot, -glm::pi<float>()/3, glm::vec3(0,1.0,0)); // rotate about Y
+        drot = glm::rotate(drot, -glm::pi<float>()/6, glm::vec3(0,1.0,0)); // rotate about Y
         
-        Vec3f trans = glm::vec3(0.0, 0.0, .50);
+        Vec3f trans = glm::vec3(0.0, 0.0, 2.5);
 
         AD_LOG(info) << drot;
 
@@ -499,9 +499,10 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
         mesh->iChunk_ = bufferManager_->allocIndexChunk((int)indexData.size(), (const uint16_t *)(indexData.data()));
         mesh->vChunk_ = bufferManager_->allocVertexChunk((int)pointData.size(), pointData.data());
 
-        for(int i = 0; i < 4; ++i)  {
+        // layou out some objects in a ring aroung the ringGroup_ node
+        for(int i = 0; i < 12; ++i)  {
         
-            MeshNode *node = (MeshNode *)coneGroup_->addChild(ObjectBase::make<MeshNode>());
+            MeshNode *node = (MeshNode *)ringGroup_->addChild(ObjectBase::make<MeshNode>());
 
             lt = glm::mat4(1.0);
             lt[3] = glm::vec4(trans,1.0);
@@ -566,8 +567,35 @@ GpuEngineImpl::unlockPixels()  {
 int
 GpuEngineImpl::renderFrame()  {
 
-    // TODO: process input and other events
+    // TODO: process input and other events here before
+    // we update the transforms.
 
+    // todo be able to scale time for anuimations
+    timing_.tickFrame();
+
+    
+    // Just here so we have some animation for updating test :)
+    // we need animation tasks
+    {
+        static float angle = 0; // bodge for test
+        
+        Matrix4f lt = ringGroup_->getLocalTransform();
+        
+        Matrix4f rot;
+        angle += timing_.lastFrameDt() * .2;
+        if( angle > (glm::pi<float>()*2)) {
+            angle -= (glm::pi<float>()*2);
+        }
+        
+        rot = glm::rotate(rot, -angle, glm::vec3(0,1.0,0)); // glm::vec4(1.0,0,-3,1);
+        lt[0] = rot[0];
+        lt[1] = rot[1];
+        lt[2] = rot[2];
+
+        ringGroup_->setLocalTransform(lt);
+    }
+
+    // update data on coard for active object instances.
     {
         Buffer iBuffer = bufferManager_->getStorageBuffer(); // TODO: needs to be resizable and compactable.
         
@@ -593,9 +621,9 @@ GpuEngineImpl::renderFrame()  {
         }
     }
 
-
     if(headless_) {
-
+        // TODO: should we wait here ?? or before processing events and binding instances ??
+        // TODO retick animations if waiting time is too long. ( waiting on Java or whatever )
         int ret = pixelUnLockLock_.waitOnSignal(10000);  // 10 seconds enough ? shoudl handle event quent queue in here
         if(ret != 0 && instance) {
             AD_LOG(error) << " signal error " << ret;
@@ -611,8 +639,8 @@ GpuEngineImpl::renderFrame()  {
     if(!instance) {
         return(-1);
     }
-    // todo be able to scale time for anuimations
-    timing_.tickFrame();
+
+
     // Update per frame uniforms  TODO: now includes model matrix for one model.
     // Only update the 1-st float of the buffer
 
@@ -679,7 +707,7 @@ GpuEngineImpl::renderFrame()  {
         if(timing().isDebugFrame()) {
             AD_LOG(info)  << "DEBUG FRAME " <<  timing().frameNumber();
         }
-
+                
         // set group for specific shader and data being used.
         renderPass.setBindGroup(0, bindGroup, 0, nullptr);
 
@@ -698,7 +726,7 @@ GpuEngineImpl::renderFrame()  {
                 renderPass.setVertexBuffer(0, bufferManager_->getVertexBuffer(), vChunk.start, vChunk.size);
                 renderPass.setIndexBuffer(bufferManager_->getIndexBuffer(), IndexFormat::Uint16, iChunk.start, iChunk.size);
                 
-                renderPass.drawIndexed(mesh->indexCount(), 1, 0, 0, 0);
+                renderPass.drawIndexed(mesh->indexCount(), 1, 0, 0, (uint32_t)i);
             }
         }
     }
