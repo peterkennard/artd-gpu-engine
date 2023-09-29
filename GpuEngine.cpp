@@ -51,7 +51,7 @@
 #include "MeshNode.h"
 #include "DrawableMesh.h"
 #include "artd/pointer_math.h"
-
+#include "./FpsMonitor.h"
 
 ARTD_BEGIN
 
@@ -573,7 +573,6 @@ GpuEngineImpl::renderFrame()  {
     // todo be able to scale time for anuimations
     timing_.tickFrame();
 
-    
     // Just here so we have some animation for updating test :)
     // we need animation tasks
     {
@@ -635,6 +634,7 @@ GpuEngineImpl::renderFrame()  {
         if(glfwWindowShouldClose(window)) {
             return(1);
         }
+        fpsMonitor_.tickFrame(timing_);
     }
     if(!instance) {
         return(-1);

@@ -16,6 +16,7 @@
 #include "artd/CachedMeshLoader.h"
 #include "artd/GpuBufferManager.h"
 #include "artd/TimingContext.h"
+#include "./FpsMonitor.h"
 
 #include <array>
 #include <chrono>
@@ -161,6 +162,7 @@ protected:
     };
 
     RenderTimingContext timing_;
+    FpsMonitor fpsMonitor_;
 
     // scene graph items
     ObjectPtr<Viewport> viewport_;
