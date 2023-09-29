@@ -723,8 +723,8 @@ GpuEngineImpl::renderFrame()  {
                 const BufferChunk &iChunk = mesh->iChunk_;
                 const BufferChunk &vChunk = mesh->vChunk_;
 
-                renderPass.setVertexBuffer(0, bufferManager_->getVertexBuffer(), vChunk.start, vChunk.size);
-                renderPass.setIndexBuffer(bufferManager_->getIndexBuffer(), IndexFormat::Uint16, iChunk.start, iChunk.size);
+                renderPass.setVertexBuffer(0, bufferManager_->getVertexBuffer(), vChunk.start(), vChunk.alignedSize());
+                renderPass.setIndexBuffer(bufferManager_->getIndexBuffer(), IndexFormat::Uint16, iChunk.start(), iChunk.alignedSize());
                 
                 renderPass.drawIndexed(mesh->indexCount(), 1, 0, 0, (uint32_t)i);
             }

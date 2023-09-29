@@ -7,13 +7,13 @@
 
 #include "artd/gpu_engine.h"
 #include "artd/ObjectBase.h"
+#include "artd/pointer_math.h"
 
 ARTD_BEGIN
 
 using namespace wgpu;
 
 class GpuEngineImpl;
-class BufferHandle;
 class GraphicsContext;
 class BufferDataImpl;
 
@@ -23,15 +23,33 @@ class GpuEngineImpl;
 class ManagedGpuBuffer;
 
 class BufferChunk {
+    uint64_t start_;
+    uint32_t size_;
 public:
-    int64_t start;
-    int64_t size;
-
-    INL operator bool() {
-        return(size > 0);
+    
+    INL BufferChunk()
+        : start_(0)
+        , size_(0)
+    {}
+    
+    INL BufferChunk(uint64_t start, uint32_t size)
+        : start_(start)
+        , size_(size)
+    {}
+    INL operator bool() const {
+        return(size_ != 0);
     }
-    INL bool operator !() {
-        return(size <= 0);
+    INL bool operator !() const {
+        return(size_ == 0);
+    }
+    INL uint64_t start() const {
+        return(start_);
+    }
+    INL uint32_t size() const {
+        return((uint32_t)size_);
+    }
+    INL uint32_t alignedSize() const {
+        return(ARTD_ALIGN_UP(size_,4));
     }
 };
 
@@ -75,9 +93,9 @@ public:
 
     void onContextCreated();
 
-    BufferHandle createBuffer();
-    void allocOrRealloc(BufferHandle &buf, int newSize, int type);
-    void loadBuffer(BufferHandle &buf, const void *data, int size, int type);
+//    BufferHandle createBuffer();
+//    void allocOrRealloc(BufferHandle &buf, int newSize, int type);
+//    void loadBuffer(BufferHandle &buf, const void *data, int size, int type);
 };
 
 #undef INL

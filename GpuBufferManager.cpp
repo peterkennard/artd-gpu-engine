@@ -66,23 +66,21 @@ public:
     }
 
     BufferChunk allocIndexChunk(int count, const uint16_t *data) override {
-        BufferChunk ret;
         if(nextIndexStart_ <= 0) {
-                nextIndexStart_ = 1024;
-                BufferDescriptor bufferDesc;
-                bufferDesc.size = ARTD_ALIGN_UP(0x0FFFF,4);
-                bufferDesc.usage = BufferUsage::CopyDst | BufferUsage::Index;
-                bufferDesc.mappedAtCreation = false;
-                indices_ = device().createBuffer(bufferDesc);
-            }
-        ret.start = nextIndexStart_;
-        size_t dataSize = count * sizeof(uint16_t);
-        ret.size = dataSize;
+            nextIndexStart_ = 1024;
+            BufferDescriptor bufferDesc;
+            bufferDesc.size = ARTD_ALIGN_UP(0x0FFFF,4);
+            bufferDesc.usage = BufferUsage::CopyDst | BufferUsage::Index;
+            bufferDesc.mappedAtCreation = false;
+            indices_ = device().createBuffer(bufferDesc);
+        }
+        uint64_t start = nextIndexStart_;
+        uint32_t dataSize = count * sizeof(uint16_t);
         auto alignedSize = ARTD_ALIGN_UP(dataSize, 4);
 
         owner_.queue.writeBuffer(indices_, nextIndexStart_, data, dataSize);
         nextIndexStart_ += alignedSize;
-        return(ret);
+        return(BufferChunk(start,dataSize));
     }
     BufferChunk allocVertexChunk(int count, const float *data) override {
         BufferChunk ret;
@@ -95,14 +93,13 @@ public:
             vertices_ = device().createBuffer(bufferDesc);
         }
 
-        ret.start = nextVertexStart_;
-        size_t dataSize = count * sizeof(*data);
-        ret.size = dataSize;
+        uint64_t start = nextVertexStart_;
+        uint32_t dataSize = count * sizeof(*data);
         auto alignedSize = ARTD_ALIGN_UP(dataSize, 4);
 
         owner_.queue.writeBuffer(vertices_, nextVertexStart_, data, dataSize);
         nextVertexStart_ += alignedSize;
-        return(ret);
+        return(BufferChunk(start,dataSize));
     }
 
     std::vector<ManagedGpuBuffer*> gpuBuffers_;
