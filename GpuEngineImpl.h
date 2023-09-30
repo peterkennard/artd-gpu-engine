@@ -84,21 +84,11 @@ protected:
     TextureView depthTextureView = nullptr;
     Texture depthTexture = nullptr;
 
-    glm::mat4x4 T1; // object position ( translation ) as full matrix !!!
-    glm::mat4x4 S;  // scaling of object
-
-    // global for whole scene camera lights etc
-    Buffer sceneUniformBuffer_ = nullptr;
-
     // global scene uniforms ?? )( I htink has model matrix in int too !!
     BindGroup bindGroup = nullptr;
     Buffer uniformBuffer = nullptr;
 
     SceneUniforms uniforms;
-
-    // test of instancing for multiple objects
-    Buffer instanceDataBuffer_ = nullptr;
-
     
     // resource management items
     ObjectPtr<GpuBufferManager> bufferManager_;
@@ -210,6 +200,7 @@ protected:
     WaitableSignal pixelLockLock_;
     WaitableSignal pixelUnLockLock_;
     
+    bool processEvents();
     void presentImage(TextureView /*texture*/ );
     TextureView getNextTexture();
 

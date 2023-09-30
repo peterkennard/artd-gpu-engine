@@ -563,6 +563,19 @@ GpuEngineImpl::unlockPixels()  {
     pixelGetter_->unlockPixels();
 }
 
+bool
+GpuEngineImpl::processEvents() {
+    
+    if(!headless_) {
+        glfwPollEvents();
+        if(glfwWindowShouldClose(window)) {
+            return(false);
+        }
+    }
+    timing_.tickFrame();
+    fpsMonitor_.tickFrame(timing_);
+    return(true);
+}
 
 int
 GpuEngineImpl::renderFrame()  {
@@ -570,10 +583,25 @@ GpuEngineImpl::renderFrame()  {
     // TODO: process input and other events here before
     // we update the transforms.
 
-    // todo be able to scale time for anuimations
-    timing_.tickFrame();
+    if(headless_) {
+        // TODO: should we wait here ?? or before processing events and binding instances ??
+        // TODO retick animations if waiting time is too long. ( waiting on Java or whatever )
+        int ret = pixelUnLockLock_.waitOnSignal(10000);  // 10 seconds enough ? shoudl handle event quent queue in here
+        if(ret != 0 && instance) {
+            AD_LOG(error) << " signal error " << ret;
+            return(0);
+        }
+    }
+    
+    if(!processEvents()) {
+        return(1);
+    }
 
-    // Just here so we have some animation for updating test :)
+    if(!instance) {
+        return(-1);
+    }
+
+    // This is here so we have some animation for updating the secne graph test :)
     // we need animation tasks
     {
         static float angle = 0; // bodge for test
@@ -594,7 +622,7 @@ GpuEngineImpl::renderFrame()  {
         ringGroup_->setLocalTransform(lt);
     }
 
-    // update data on coard for active object instances.
+    // update data on GPU for active (visible) object instances.
     {
         Buffer iBuffer = bufferManager_->getStorageBuffer(); // TODO: needs to be resizable and compactable.
         
@@ -619,27 +647,7 @@ GpuEngineImpl::renderFrame()  {
             uploadCount = (int)std::min(128,countLeft);
         }
     }
-
-    if(headless_) {
-        // TODO: should we wait here ?? or before processing events and binding instances ??
-        // TODO retick animations if waiting time is too long. ( waiting on Java or whatever )
-        int ret = pixelUnLockLock_.waitOnSignal(10000);  // 10 seconds enough ? shoudl handle event quent queue in here
-        if(ret != 0 && instance) {
-            AD_LOG(error) << " signal error " << ret;
-            return(0);
-        }
-//        timing_.tickFrame(  );
-    } else {
-        glfwPollEvents();
-        if(glfwWindowShouldClose(window)) {
-            return(1);
-        }
-        fpsMonitor_.tickFrame(timing_);
-    }
-    if(!instance) {
-        return(-1);
-    }
-
+    
 
     // Update per frame uniforms  TODO: now includes model matrix for one model.
     // Only update the 1-st float of the buffer

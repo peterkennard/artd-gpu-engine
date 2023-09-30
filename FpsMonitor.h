@@ -4,6 +4,7 @@
 #include "artd/TimingContext.h"
 #include "artd/Logger.h"
 #include <algorithm>
+#include <iostream>
 
 ARTD_BEGIN
 
@@ -19,7 +20,7 @@ class FpsMonitor {
 public:
     FpsMonitor() {
         fpsStartTime = -1.0;
-        updateInterval = 1.5;
+        updateInterval = 3.5;
     }
 
     void tickFrame(const TimingContext &tc) {
@@ -50,7 +51,7 @@ public:
             fpsTotalDuration = now - fpsStartTime;
             fpsTotal = ((double)fpsTotalFrames) / fpsTotalDuration;
             fpsLastUpdateTime = now - .0000001;
-            AD_LOG(print) << "FPS: " << fpsLast;
+            AD_LOG(print) << "FPS: " << std::fixed << std::setprecision(2) << fpsLast;
         }
     }
 };
