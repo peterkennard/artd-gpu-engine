@@ -472,16 +472,40 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
 
     // initialize a scene (big hack)
     {
+
+        // create two meshes cube and cone
+
         std::vector<float> pointData;
         std::vector<uint16_t> indexData;
 
+        ObjectPtr<DrawableMesh> coneMesh;
+
     	bool success = meshLoader_->loadGeometry("cone", pointData, indexData, 6 /* dimensions */);
-    //	bool success = meshLoader_->loadGeometry("cube", pointData, indexData, 6 /* dimensions */);
+    	if (!success) {
+    		AD_LOG(info) << "Could not load geometry!";
+    		return 1;
+    	}
+
+        coneMesh = ObjectBase::make<DrawableMesh>();
+        coneMesh->indexCount_ = (int)indexData.size();
+        coneMesh->iChunk_ = bufferManager_->allocIndexChunk((int)indexData.size(), (const uint16_t *)(indexData.data()));
+        coneMesh->vChunk_ = bufferManager_->allocVertexChunk((int)pointData.size(), pointData.data());
+
+        ObjectPtr<DrawableMesh> cubeMesh;
 
     	if (!success) {
     		AD_LOG(info) << "Could not load geometry!";
     		return 1;
     	}
+
+        success = meshLoader_->loadGeometry("cube", pointData, indexData, 6 /* dimensions */);
+
+        cubeMesh = ObjectBase::make<DrawableMesh>();
+        cubeMesh->indexCount_ = (int)indexData.size();
+        cubeMesh->iChunk_ = bufferManager_->allocIndexChunk((int)indexData.size(), (const uint16_t *)(indexData.data()));
+        cubeMesh->vChunk_ = bufferManager_->allocVertexChunk((int)pointData.size(), pointData.data());
+
+        // lay them out
 
         Matrix4f lt(1.0);
         
@@ -498,22 +522,21 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
 
         AD_LOG(info) << drot;
 
-        ObjectPtr<DrawableMesh> mesh = ObjectBase::make<DrawableMesh>();
-        mesh->indexCount_ = (int)indexData.size();
-        mesh->iChunk_ = bufferManager_->allocIndexChunk((int)indexData.size(), (const uint16_t *)(indexData.data()));
-        mesh->vChunk_ = bufferManager_->allocVertexChunk((int)pointData.size(), pointData.data());
-
-        // layou out some objects in a ring aroung the ringGroup_ node
+        // layout some objects in a ring around the ringGroup_ node
         for(int i = 0; i < 12; ++i)  {
         
             MeshNode *node = (MeshNode *)ringGroup_->addChild(ObjectBase::make<MeshNode>());
 
             lt = glm::mat4(1.0);
             lt[3] = glm::vec4(trans,1.0);
-            drawables_.push_back(node);
+            drawables_.push_back(node);  // add to bodgy list of visible drawables
             node->setLocalTransform(lt);
             trans = glm::mat3(drot) * trans;
-            node->setMesh(mesh);
+            if((i & 1) != 0) {
+                node->setMesh(coneMesh);
+            } else {
+                node->setMesh(cubeMesh);
+            }
         }
     }
 
