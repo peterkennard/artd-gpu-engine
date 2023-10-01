@@ -74,6 +74,7 @@ protected:
     Adapter adapter = nullptr;
     Device device = nullptr;
     std::unique_ptr<ErrorCallback> errorCallback_;
+    std::unique_ptr<DeviceLostCallback> deviceLostCallback_;
     Queue queue = nullptr;
     Texture targetTexture = nullptr;
     TextureView targetTextureView = nullptr;

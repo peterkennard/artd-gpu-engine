@@ -158,11 +158,15 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
     deviceDesc.defaultQueue.label = "The default queue";
     device = adapter.requestDevice(deviceDesc);
     AD_LOG(info) << "Got device: " << device;
-    
+        
     // Add an error callback for more debug info
     errorCallback_ = device.setUncapturedErrorCallback([](ErrorType type, char const* message) {
         AD_LOG(error) << "Device error: type " << type << "(" << (message ? message : "" ) << ")";
     });
+
+    deviceLostCallback_ = device.setDeviceLostCallback([](DeviceLostReason /*reason*/, char const * /*message*/) {
+    });
+
     
     shaderManager_ = ObjectBase::make<ShaderManager>(device);
     
@@ -775,6 +779,7 @@ GpuEngineImpl::releaseResources() {
 
         meshLoader_ = nullptr;
         bufferManager_->shutdown();
+
         device.release();
         adapter.release();
         instance.release();
@@ -791,13 +796,13 @@ ARTD_END
 #ifndef _WIN32
     __attribute__((constructor))
     static void initializer(void) {
-        AD_LOG(info) << "loaded into process";
+        AD_LOG(info) << "library loaded into process";
     }
 
     // Finalizer.
     __attribute__((destructor))
     static void finalizer(void) {
-        AD_LOG(info) << "unloaded from process";
+        AD_LOG(info) << "library unloaded from process";
     }
 #endif
 
