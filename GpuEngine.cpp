@@ -591,10 +591,13 @@ GpuEngineImpl::renderFrame()  {
             AD_LOG(error) << " signal error " << ret;
             return(0);
         }
-    }
-    
-    if(!processEvents()) {
-        return(1);
+        if(!processEvents()) {
+            return(1);
+        }
+    } else {
+        if(!processEvents()) {
+            return(1);
+        }
     }
 
     if(!instance) {
@@ -614,7 +617,7 @@ GpuEngineImpl::renderFrame()  {
             angle -= (glm::pi<float>()*2);
         }
         
-        rot = glm::rotate(rot, -angle, glm::vec3(1.0,0,0)); // glm::vec4(1.0,0,-3,1);
+        rot = glm::rotate(rot, -angle, glm::vec3(0,1.0,0));
         lt[0] = rot[0];
         lt[1] = rot[1];
         lt[2] = rot[2];
