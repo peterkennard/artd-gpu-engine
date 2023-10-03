@@ -224,6 +224,7 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
     }
     
     // ****** shader module part
+    resourceManager_ = ResourceManager::create();
     
     AD_LOG(info) << "Creating shader module...";
     shaderModule = shaderManager_->loadShaderModule("pyramid056.wgsl");

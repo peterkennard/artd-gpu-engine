@@ -101,9 +101,16 @@ protected:
     virtual ~ResourceManager() {}
     static ResourceManager *instance_;
     virtual void _asyncLoadBinaryResource(StringArg path, const std::function<void(ByteArray &)> &onDone, bool onUIThread = true) = 0;
+    virtual void _asyncLoadStringResource(StringArg path, const std::function<void(RcString &)> &onDone, bool onUIThread = true) = 0;
 public:
-    inline static void asyncLoadBinaryResource(StringArg path, const std::function<void(ByteArray &)> &onDone, bool onUIThread = true) {
+    
+    static ObjectPtr<ResourceManager> create();
+    
+    INL static void asyncLoadBinaryResource(StringArg path, const std::function<void(ByteArray &)> &onDone, bool onUIThread = true) {
         instance_->_asyncLoadBinaryResource(path, onDone, onUIThread);
+    }
+    INL static void asyncLoadStringResource(StringArg path, const std::function<void(RcString &)> &onDone, bool onUIThread = true) {
+        instance_->_asyncLoadStringResource(path, onDone, onUIThread);
     }
 };
 

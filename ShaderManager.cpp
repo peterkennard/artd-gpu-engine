@@ -62,6 +62,8 @@ return vec4f(0.0, 0.4, 1.0, 1.0);
 /// ************************* Triangle mesh shader
 
 static const char* pyramid056ShaderSource = R"(
+
+
 struct VertexInput {
 	@builtin(instance_index) instanceIx: u32,
 	@location(0) position: vec3f,
@@ -141,6 +143,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 	return vec4f(corrected_color,1.0); // corrected_color, uMyUniforms.color.a);
 }
 )";
+
 
 ShaderModule
 ShaderManager::loadShaderModule(const fs::path& path) {

@@ -92,6 +92,7 @@ protected:
     SceneUniforms uniforms;
     
     // resource management items
+    ObjectPtr<ResourceManager>  resourceManager_;
     ObjectPtr<GpuBufferManager> bufferManager_;
     ObjectPtr<CachedMeshLoader> meshLoader_;
     ObjectPtr<ShaderManager>    shaderManager_;
