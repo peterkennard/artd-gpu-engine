@@ -13,19 +13,20 @@ class DrawableMesh
 {
 public:
 
-    BufferChunk iChunk_;
-    BufferChunk vChunk_;
+    ObjectPtr<BufferChunk> iChunk_;
+    ObjectPtr<BufferChunk> vChunk_;
+    
     int indexCount_ = 0;
 
     DrawableMesh();
     ~DrawableMesh();
 
     INL const BufferChunk &indices() const {
-        return(iChunk_);
+        return(*iChunk_);
     }
 
     INL const BufferChunk &vertices() const {
-        return(iChunk_);
+        return(*iChunk_);
     }
     
     INL int indexCount() const {

@@ -20,38 +20,51 @@ class BufferDataImpl;
 #define INL ARTD_ALWAYS_INLINE
 
 class GpuEngineImpl;
-class ManagedGpuBuffer;
 
 class BufferChunk {
-    uint64_t start_;
+protected:
+
+    Buffer *parent_;  // note this doubles as pointer to parent "Managed Buffer"
     uint32_t size_;
+    uint32_t start_;  // 1/4 start offset
+
+    INL BufferChunk()
+        : parent_(nullptr)
+        , size_(0)
+        , start_(0)
+    {}
+    
+    INL BufferChunk(Buffer *buf, uint64_t start, uint32_t size)
+        : parent_(buf)
+        , size_(size)
+        , start_((uint32_t)(start >> 2))
+    {}
 public:
     
-    INL BufferChunk()
-        : start_(0)
-        , size_(0)
-    {}
+    ~BufferChunk();
     
-    INL BufferChunk(uint64_t start, uint32_t size)
-        : start_(start)
-        , size_(size)
-    {}
     INL operator bool() const {
         return(size_ != 0);
     }
     INL bool operator !() const {
         return(size_ == 0);
     }
-    INL uint64_t start() const {
-        return(start_);
+    INL uint64_t getStartOffset() const {
+        return(start_ << 2);
     }
-    INL uint32_t size() const {
-        return((uint32_t)size_);
+    INL uint32_t getSize() const {
+        return(size_);
     }
     INL uint32_t alignedSize() const {
         return(ARTD_ALIGN_UP(size_,4));
     }
+    INL Buffer getBuffer() const {
+        if(parent_)
+            return(*parent_);
+        return(nullptr);
+    }
 };
+
 
 class ARTD_API_GPU_ENGINE GpuBufferManager
 {
@@ -59,35 +72,15 @@ class ARTD_API_GPU_ENGINE GpuBufferManager
 protected:
     GpuEngineImpl &owner_;
     GpuBufferManager(GpuEngineImpl *owner);
-
-    Buffer storage_ = nullptr;
-    Buffer indices_ = nullptr;
-    Buffer vertices_ = nullptr;
-
 public:
+
     static ObjectPtr<GpuBufferManager> create(GpuEngineImpl *owner);
 
     virtual ~GpuBufferManager();
 
-    virtual BufferChunk allocIndexChunk(int count, const uint16_t *data) = 0;
-    virtual BufferChunk allocVertexChunk(int count, const float *data) = 0;
-    virtual wgpu::Buffer initStorageBuffer() = 0;
-
-    INL wgpu::Buffer getIndexBuffer() {
-        return(indices_);
-    }
-    
-    INL wgpu::Buffer getVertexBuffer() {
-        return(vertices_);
-    }
-
-    // TODO: for now this is get THE storage buffer
-    INL wgpu::Buffer getStorageBuffer() {
-        if(!storage_) {
-            initStorageBuffer();
-        }
-        return(storage_);
-    }
+    virtual ObjectPtr<BufferChunk> allocStorageChunk(uint32_t size) = 0;
+    virtual ObjectPtr<BufferChunk> allocIndexChunk(int count, const uint16_t *data) = 0;
+    virtual ObjectPtr<BufferChunk> allocVertexChunk(int count, const float *data) = 0;
 
     virtual void shutdown() = 0;
 
@@ -97,6 +90,7 @@ public:
 //    void allocOrRealloc(BufferHandle &buf, int newSize, int type);
 //    void loadBuffer(BufferHandle &buf, const void *data, int size, int type);
 };
+
 
 #undef INL
 

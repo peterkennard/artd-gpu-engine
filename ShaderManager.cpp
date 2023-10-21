@@ -92,15 +92,21 @@ struct InstanceData {
     modelMatrix: mat4x4f,
 };
 
+struct MaterialData {
+    diffuse: vec3f,
+    unused_: f32,
+};
+
+
 // Bound variable is a struct
 @group(0) @binding(0) var<uniform> uMyUniforms: SceneUniforms;
 // TODO: not sure if this is right for the array guessing
 @group(0) @binding(1) var<storage> instanceArray : array<InstanceData>;
+@group(0) @binding(2) var<storage> materialArray : array<MaterialData>;
 
 // TODO: from a stack overflow question
 // let grid = &voxel_volume.indirection_pool[pool_index];
 // let cell = (*grid).cells[grid_index].data;
-
 
 
 @vertex

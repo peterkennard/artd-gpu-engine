@@ -51,6 +51,12 @@ struct InstanceData  {
 
 static_assert(sizeof(InstanceData) % 16 == 0);
 
+struct MaterialData  {
+    glm::vec3 diffuse;
+    int32_t unused_;
+};
+
+static_assert(sizeof(MaterialData) % 16 == 0);
 
 
 using namespace wgpu;
@@ -96,6 +102,10 @@ protected:
     ObjectPtr<GpuBufferManager> bufferManager_;
     ObjectPtr<CachedMeshLoader> meshLoader_;
     ObjectPtr<ShaderManager>    shaderManager_;
+
+    // there won't be too many of these ?? they are 128 bits !!
+    ObjectPtr<BufferChunk>      instanceBuffer_;
+    ObjectPtr<BufferChunk>      materialBuffer_;
 
     class RenderTimingContext
         : public TimingContext

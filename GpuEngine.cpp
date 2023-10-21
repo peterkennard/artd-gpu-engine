@@ -330,7 +330,7 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
     // Create binding layout (don't forget to = Default)
     
     // bindGroupLayout = nullptr;
-    BindGroupLayoutEntry bindingLayouts[2];
+    BindGroupLayoutEntry bindingLayouts[3];
     {
         bindingLayouts[0] = Default;
         bindingLayouts[0].binding = 0;
@@ -343,11 +343,17 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
         bindingLayouts[1].visibility = ShaderStage::Vertex | ShaderStage::Fragment;
         bindingLayouts[1].buffer.type = BufferBindingType::ReadOnlyStorage;
         bindingLayouts[1].buffer.minBindingSize = sizeof(InstanceData);
+
+        bindingLayouts[2] = Default;
+        bindingLayouts[2].binding = 2;
+        bindingLayouts[2].visibility = ShaderStage::Vertex | ShaderStage::Fragment;
+        bindingLayouts[2].buffer.type = BufferBindingType::ReadOnlyStorage;
+        bindingLayouts[2].buffer.minBindingSize = sizeof(MaterialData);
     }
     
     // Create a bind group layout
     BindGroupLayoutDescriptor bindGroupLayoutDesc{};
-    bindGroupLayoutDesc.entryCount = 2;
+    bindGroupLayoutDesc.entryCount = 3; // todo take from data struct
     bindGroupLayoutDesc.entries =  bindingLayouts;
     BindGroupLayout bindGroupLayout = device.createBindGroupLayout(bindGroupLayoutDesc);
 
@@ -420,24 +426,36 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
 
 	// Create bindings for test objects
 	{
-        BindGroupEntry bindings[2];
+        BindGroupEntry bindings[3];
 
         bindings[0].binding = 0;
         bindings[0].buffer = uniformBuffer;
         bindings[0].offset = 0;
         bindings[0].size = sizeof(SceneUniforms);
 
-        // TODO: handle buffer chunks with offsets?
-        Buffer b = bufferManager_->getStorageBuffer();
-        bindings[1].binding = 1;
-        bindings[1].buffer = b;
-        bindings[1].offset = 0;
-        bindings[1].size = b.getSize();
+        instanceBuffer_ = bufferManager_->allocStorageChunk(128 * sizeof(InstanceData));
+        {
+            BufferChunk &b = *instanceBuffer_;
+            bindings[1].binding = 1;
+            bindings[1].buffer = b.getBuffer();
+            bindings[1].offset = b.getStartOffset();
+            bindings[1].size = b.getSize();
+        }
+
+        materialBuffer_ = bufferManager_->allocStorageChunk(64 * sizeof(MaterialData));
+
+        {
+            BufferChunk &b = *materialBuffer_;
+            bindings[2].binding = 2;
+            bindings[2].buffer = b.getBuffer();
+            bindings[2].offset = b.getStartOffset();
+            bindings[2].size = b.getSize();
+        }
 
         // A bind group contains one or multiple bindings
         BindGroupDescriptor bindGroupDesc;
         bindGroupDesc.layout = bindGroupLayout;
-        bindGroupDesc.entryCount = 2;
+        bindGroupDesc.entryCount = 3;
         bindGroupDesc.entries = bindings;
         bindGroup = device.createBindGroup(bindGroupDesc);
     }
@@ -655,7 +673,7 @@ GpuEngineImpl::renderFrame()  {
 
     // update data on GPU for active (visible) object instances.
     {
-        Buffer iBuffer = bufferManager_->getStorageBuffer(); // TODO: needs to be resizable and compactable.
+        Buffer iBuffer = instanceBuffer_->getBuffer();
         
         int countLeft = (int)drawables_.size();
         size_t offset = 0;
@@ -762,8 +780,8 @@ GpuEngineImpl::renderFrame()  {
                 const BufferChunk &iChunk = mesh->iChunk_;
                 const BufferChunk &vChunk = mesh->vChunk_;
 
-                renderPass.setVertexBuffer(0, bufferManager_->getVertexBuffer(), vChunk.start(), vChunk.alignedSize());
-                renderPass.setIndexBuffer(bufferManager_->getIndexBuffer(), IndexFormat::Uint16, iChunk.start(), iChunk.alignedSize());
+                renderPass.setVertexBuffer(0, vChunk.getBuffer(), vChunk.getStartOffset(), vChunk.alignedSize());
+                renderPass.setIndexBuffer(iChunk.getBuffer(), IndexFormat::Uint16, iChunk.getStartOffset(), iChunk.alignedSize());
                 
                 renderPass.drawIndexed(mesh->indexCount(), 1, 0, 0, (uint32_t)i);
             }
