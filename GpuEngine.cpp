@@ -48,6 +48,7 @@
 
 #include "artd/GpuEngine-PanamaExports.h"
 #include "artd/Matrix4f.h"
+#include "artd/Color3f.h"
 #include "MeshNode.h"
 #include "DrawableMesh.h"
 #include "artd/pointer_math.h"
@@ -491,6 +492,27 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
 
     // initialize a scene (big hack)
     {
+        // create some simple test materials.
+        materials_.clear();
+        
+        // test colors
+        Color3f colors[] = {
+            { 36,133,234 },
+            { 177,20,31 },
+            { 203,205,195 },
+            { 152, 35, 24 },
+            { 154, 169, 153 },
+            { 179, 126, 64 },
+            { 50, 74, 84 },
+            { 226, 175, 105 }
+        };
+        
+        for(int i = 0; i < (int)ARTD_ARRAY_LENGTH(colors); ++i) {
+            materials_.push_back(ObjectBase::make<MaterialData>());
+            auto pMat = materials_[i].get();
+            pMat->diffuse = colors[i];
+            pMat->id_ = i;
+        }
 
         // create two meshes cube and cone
 
@@ -542,6 +564,9 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
         AD_LOG(info) << drot;
 
         // layout some objects in a ring around the ringGroup_ node
+        // assign one of the test materials to it.
+        
+        uint32_t materialId = 0;
         for(int i = 0; i < 12; ++i)  {
         
             MeshNode *node = (MeshNode *)ringGroup_->addChild(ObjectBase::make<MeshNode>());
@@ -551,6 +576,12 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
             drawables_.push_back(node);  // add to bodgy list of visible drawables
             node->setLocalTransform(lt);
             trans = glm::mat3(drot) * trans;
+            
+            node->setMaterial(materials_[materialId]);
+            if(++materialId >= materials_.size()) {
+                materialId = 0;
+            }
+            
             if((i & 1) != 0) {
                 node->setMesh(coneMesh);
             } else {
@@ -671,42 +702,69 @@ GpuEngineImpl::renderFrame()  {
         ringGroup_->setLocalTransform(lt);
     }
 
-    // update data on GPU for active (visible) object instances.
     {
-        Buffer iBuffer = instanceBuffer_->getBuffer();
+        static const int bufferSize = 0x2000;
+        std::unique_ptr<uint8_t> workBuffer(new uint8_t[bufferSize]); // todo pick optimum buffer size ?
+                                               
+        // update data on GPU for active (visible) object instances.
+ 
+        // material data array
         
-        int countLeft = (int)drawables_.size();
-        size_t offset = 0;
-        // temp buffer to upload
-        int uploadCount = (int)std::min(128,countLeft);
+        {
+            Buffer iBuffer = materialBuffer_->getBuffer();
+            auto offset = materialBuffer_->getStartOffset();
 
-        std::vector<InstanceData> iData(uploadCount);
-        
-        while(countLeft > 0) {
-            int i = 0;
-            
-            for(; i < uploadCount; ++i) {
-                drawables_[i]->loadInstanceData(iData[i]);
+            int countLeft = (int)materials_.size();
+            // temp buffer to upload
+            const int maxCount = (int)(bufferSize/sizeof(InstanceData));
+            int uploadCount = (int)std::min(maxCount,countLeft);
+            MaterialData *iData = (MaterialData *)workBuffer.get();
+
+            while(countLeft > 0) {
+                int i = 0;
+                
+                for(; i < uploadCount; ++i) {
+                    *iData = *materials_[i];
+                }
+                countLeft -= i;
+                // upload a buffer full
+                i *= sizeof(*iData);
+                queue.writeBuffer(iBuffer, offset, &iData[0], i );
+                offset += i;
+                uploadCount = (int)std::min(maxCount,countLeft);
             }
-            countLeft -= i;
-            // upload a buffer full
-            i *= sizeof(InstanceData);
-            queue.writeBuffer(iBuffer, offset, &iData[0], i );
-            offset += i;
-            uploadCount = (int)std::min(128,countLeft);
+        }
+
+        
+        // instance data array
+        {
+            Buffer iBuffer = instanceBuffer_->getBuffer();
+            auto offset = instanceBuffer_->getStartOffset();
+
+            int countLeft = (int)drawables_.size();
+            // temp buffer to upload
+            const int maxCount = (int)(bufferSize/sizeof(InstanceData));
+            int uploadCount = (int)std::min(maxCount,countLeft);
+            InstanceData *iData = (InstanceData *)workBuffer.get();
+            
+            // std::vector<InstanceData> iData(uploadCount);
+            
+            while(countLeft > 0) {
+                int i = 0;
+                
+                for(; i < uploadCount; ++i) {
+                    drawables_[i]->loadInstanceData(iData[i]);
+                }
+                countLeft -= i;
+                // upload a buffer full
+                i *= sizeof(*iData);
+                queue.writeBuffer(iBuffer, offset, &iData[0], i );
+                offset += i;
+                uploadCount = (int)std::min(maxCount,countLeft);
+            }
         }
     }
     
-
-    // Update per frame uniforms  TODO: now includes model matrix for one model.
-    // Only update the 1-st float of the buffer
-
-    {
-        auto camera = camNode_->getCamera();
-        uniforms.viewMatrix = camera->getView();
-        uniforms.projectionMatrix = camera->getProjection();
-    }
-
     TextureView nextTexture = getNextTexture();
     if (!nextTexture) {
         AD_LOG(error) << "Cannot acquire next swap chain texture";
@@ -756,10 +814,11 @@ GpuEngineImpl::renderFrame()  {
     renderPass.setPipeline(pipeline);
 
     { // draw the models ( needs to be organized )}
-        // set the camers
+        // set the camera transforms
         auto camera = camNode_->getCamera();
         uniforms.viewMatrix = camera->getView();
         uniforms.projectionMatrix = camera->getProjection();
+        queue.writeBuffer(uniformBuffer, 0, &uniforms, sizeof(SceneUniforms));
 
 //        if(timing().isDebugFrame()) {
 //            AD_LOG(info)  << "DEBUG FRAME " <<  timing().frameNumber();
@@ -768,11 +827,8 @@ GpuEngineImpl::renderFrame()  {
         // set group for specific shader and data being used.
         renderPass.setBindGroup(0, bindGroup, 0, nullptr);
 
-        for(size_t i = 0; i < drawables_.size(); ++i) {
-            const glm::mat4 &M = drawables_[i]->getLocalToWorldTransform();
-            uniforms.modelMatrix = M;
 
-            queue.writeBuffer(uniformBuffer, 0, &uniforms, sizeof(SceneUniforms)); // offsetof(SceneUniforms, _pad[0]));
+        for(size_t i = 0; i < drawables_.size(); ++i) {
 
             DrawableMesh *mesh = drawables_[i]->getMesh();
 

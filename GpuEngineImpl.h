@@ -47,13 +47,19 @@ static_assert(sizeof(SceneUniforms) % 16 == 0);
 
 struct InstanceData  {
     glm::mat4x4 modelMatrix;  // model specific
+    uint32_t materialId;
+    uint32_t objectId;
+    uint32_t _pad[2];
 };
 
 static_assert(sizeof(InstanceData) % 16 == 0);
 
 struct MaterialData  {
     glm::vec3 diffuse;
-    int32_t unused_;
+    int32_t id_;
+    INL int32_t getId() {
+        return(id_);
+    }
 };
 
 static_assert(sizeof(MaterialData) % 16 == 0);
@@ -172,6 +178,9 @@ protected:
     ObjectPtr<TransformNode> ringGroup_;
     // TODO: to be grouped by shader/pipeline  Just a hack for now.
     std::vector<MeshNode*> drawables_;
+    
+    // TODO: Integrate into ResourceManager, or create a material manager to handle dynamism creating/deleting
+    std::vector<ObjectPtr<MaterialData>> materials_;
 
     GpuEngineImpl() {
 

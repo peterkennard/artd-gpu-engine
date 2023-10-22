@@ -90,11 +90,15 @@ struct SceneUniforms {
 
 struct InstanceData {
     modelMatrix: mat4x4f,
+    materialId: u32,
+    objectId: u32,
+    unused1_: u32, // pad for 16 byte alignment
+    unused2_: u32, // pad for 16 bytes alignment
 };
 
 struct MaterialData {
     diffuse: vec3f,
-    unused_: f32,
+    unused_: f32,  // id ? we need transparency ??
 };
 
 
@@ -114,7 +118,7 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 	var out: VertexOutput;
 // Use the instance index to retrieve the matrix !!  indexData[in.instanceIx]
 
-	out.position = uMyUniforms.projectionMatrix * uMyUniforms.viewMatrix * instanceArray[in.instanceIx].modelMatrix * vec4f(in.position, 1.0);
+    out.position = uMyUniforms.projectionMatrix * uMyUniforms.viewMatrix * instanceArray[in.instanceIx].modelMatrix * vec4f(in.position, 1.0);
 	// Forward the normal TODO: pass in a normal "pose" matrix this uses a square root.
     out.normal = normalize((instanceArray[in.instanceIx].modelMatrix * vec4f(in.normal, 0.0)).xyz);
 	return out;
