@@ -435,6 +435,7 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
         bindings[0].size = sizeof(SceneUniforms);
 
         instanceBuffer_ = bufferManager_->allocStorageChunk(128 * sizeof(InstanceData));
+
         {
             BufferChunk &b = *instanceBuffer_;
             bindings[1].binding = 1;
@@ -705,18 +706,17 @@ GpuEngineImpl::renderFrame()  {
     {
         static const int bufferSize = 0x2000;
         std::unique_ptr<uint8_t> workBuffer(new uint8_t[bufferSize]); // todo pick optimum buffer size ?
-                                               
+
         // update data on GPU for active (visible) object instances.
  
         // material data array
-        
         {
             Buffer iBuffer = materialBuffer_->getBuffer();
             auto offset = materialBuffer_->getStartOffset();
 
             int countLeft = (int)materials_.size();
             // temp buffer to upload
-            const int maxCount = (int)(bufferSize/sizeof(InstanceData));
+            const int maxCount = (int)(bufferSize/sizeof(MaterialData));
             int uploadCount = (int)std::min(maxCount,countLeft);
             MaterialData *iData = (MaterialData *)workBuffer.get();
 
@@ -724,7 +724,7 @@ GpuEngineImpl::renderFrame()  {
                 int i = 0;
                 
                 for(; i < uploadCount; ++i) {
-                    *iData = *materials_[i];
+                    iData[i] = *materials_[i];
                 }
                 countLeft -= i;
                 // upload a buffer full
@@ -746,9 +746,7 @@ GpuEngineImpl::renderFrame()  {
             const int maxCount = (int)(bufferSize/sizeof(InstanceData));
             int uploadCount = (int)std::min(maxCount,countLeft);
             InstanceData *iData = (InstanceData *)workBuffer.get();
-            
-            // std::vector<InstanceData> iData(uploadCount);
-            
+
             while(countLeft > 0) {
                 int i = 0;
                 

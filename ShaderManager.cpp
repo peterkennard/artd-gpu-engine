@@ -37,44 +37,13 @@ ShaderManager::ShaderManager(Device device)
 {
 }
 
-/// *********************** simple triangle shader
-
-static const char* triangleShaderSource = R"(
-@vertex
-fn vs_main(@builtin(vertex_index) in_vertex_index: u32) -> @builtin(position) vec4<f32> {
-var p = vec2f(0.0, 0.0);
-if (in_vertex_index == 0u) {
-    p = vec2f(-0.5, -0.5);
-} else if (in_vertex_index == 1u) {
-    p = vec2f(0.5, -0.5);
-} else {
-    p = vec2f(0.0, 0.5);
-}
-return vec4f(p, 0.0, 1.0);
-}
-
-@fragment
-fn fs_main() -> @location(0) vec4f {
-return vec4f(0.0, 0.4, 1.0, 1.0);
-}
-)";
-
-/// ************************* Triangle mesh shader
-
 static const char* pyramid056ShaderSource = R"(
-
 
 struct VertexInput {
 	@builtin(instance_index) instanceIx: u32,
 	@location(0) position: vec3f,
 	@location(1) normal: vec3f, // new attribute
 	@location(2) color: vec3f,
-};
-
-struct VertexOutput {
-	@builtin(position) position: vec4f,
-	@location(0) normal: vec3f,
-	@location(1) texUV:  vec2f  // TBD unused now
 };
 
 /**
@@ -101,6 +70,14 @@ struct MaterialData {
     unused_: f32,  // id ? we need transparency ??
 };
 
+struct VertexOutput {
+    @builtin(position) position: vec4f,
+    @location(0) normal: vec3f,
+    @location(1) texUV:  vec2f,  // TBD unused now
+    @location(2) @interpolate(flat) materialIx: u32
+};
+
+
 
 // Bound variable is a struct
 @group(0) @binding(0) var<uniform> uMyUniforms: SceneUniforms;
@@ -121,36 +98,43 @@ fn vs_main(in: VertexInput) -> VertexOutput {
     out.position = uMyUniforms.projectionMatrix * uMyUniforms.viewMatrix * instanceArray[in.instanceIx].modelMatrix * vec4f(in.position, 1.0);
 	// Forward the normal TODO: pass in a normal "pose" matrix this uses a square root.
     out.normal = normalize((instanceArray[in.instanceIx].modelMatrix * vec4f(in.normal, 0.0)).xyz);
-	return out;
+	out.materialIx = instanceArray[in.instanceIx].materialId;
+    return out;
 }
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 	let normal = in.normal;
+    let material = materialArray[in.materialIx]; // indirection or by value ? or is it a reference ?
 
-	let lightColor1 = vec3f(1.0, 1.0, 1.0);
-	let lightColor2 = vec3f(0.4, 0.4, 0.6);
-	let lightDirection1 = normalize(vec3f(0.5, -0.1, -0.4));
-	let lightDirection2 = normalize(vec3f(-0.5, 0.1, 0.3));
-	let shading1 = max(0.0, dot(lightDirection1, normal));
-	let shading2 = max(0.0, dot(lightDirection2, normal));
+    // for testing
+    return vec4f(material.diffuse,1.0);
 
-	let shading = shading1 * lightColor1 + shading2 * lightColor2;
+//	let lightColor1 = vec3f(1.0, 1.0, 1.0);
+//	let lightColor2 = vec3f(0.4, 0.4, 0.6);
+//	let lightDirection1 = normalize(vec3f(0.5, -0.1, -0.4));
+//	let lightDirection2 = normalize(vec3f(-0.5, 0.1, 0.3));
+//	let shading1 = max(0.0, dot(lightDirection1, normal));
+//	let shading2 = max(0.0, dot(lightDirection2, normal));
+//
+//	let shading = shading1 * lightColor1 + shading2 * lightColor2;
+//
+//	var color = vec3(.8,0.8,0.8) * shading;
+//    if(color.x > 1.0) {
+//        color.x = 1.0;
+//    }
+//    if(color.y > 1.0) {
+//        color.y = 1.0;
+//    }
+//    if(color.z > 1.0) {
+//        color.z = 1.0;
+//    }
+//
+//	// Gamma-correction
+//	let corrected_color = pow(color, vec3f(2.2));
+//    return vec4f(corrected_color,1.0); // corrected_color, uMyUniforms.color.a);
 
-	var color = vec3(.8,0.8,0.8) * shading;
-    if(color.x > 1.0) {
-        color.x = 1.0;
-    }
-    if(color.y > 1.0) {
-        color.y = 1.0;
-    }
-    if(color.z > 1.0) {
-        color.z = 1.0;
-    }
 
-	// Gamma-correction
-	let corrected_color = pow(color, vec3f(2.2));
-	return vec4f(corrected_color,1.0); // corrected_color, uMyUniforms.color.a);
 }
 )";
 
@@ -161,10 +145,8 @@ ShaderManager::loadShaderModule(const fs::path& path) {
     const char *shaderCode = "";
     std::string shaderSource(" ");
 
-    if( path == "pyramid056.wgsl")
+    if( path == "pyramid056.wgsl") {
         shaderCode = pyramid056ShaderSource;
-    else if(path == "triangle")  {
-        shaderCode = triangleShaderSource;
     } else {
 
         std::ifstream file(path);
