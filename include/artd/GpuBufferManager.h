@@ -55,9 +55,9 @@ public:
     INL uint32_t getSize() const {
         return(size_);
     }
-    INL uint32_t alignedSize() const {
-        return(ARTD_ALIGN_UP(size_,4));
-    }
+//    INL uint32_t alignedSize() const {
+//        return(ARTD_ALIGN_UP(size_,4));
+//    }
     INL Buffer getBuffer() const {
         if(parent_)
             return(*parent_);
@@ -78,6 +78,7 @@ public:
 
     virtual ~GpuBufferManager();
 
+    virtual ObjectPtr<BufferChunk> allocUniformChunk(uint32_t size) = 0;
     virtual ObjectPtr<BufferChunk> allocStorageChunk(uint32_t size) = 0;
     virtual ObjectPtr<BufferChunk> allocIndexChunk(int count, const uint16_t *data) = 0;
     virtual ObjectPtr<BufferChunk> allocVertexChunk(int count, const float *data) = 0;

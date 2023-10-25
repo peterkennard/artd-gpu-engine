@@ -250,8 +250,8 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
     
     // Color attribute
     vertexAttribs[2].shaderLocation = 2;
-    vertexAttribs[2].format = VertexFormat::Float32x3;
-    vertexAttribs[2].offset = offsetof(VertexAttributes, color);
+    vertexAttribs[2].format = VertexFormat::Float32x2;
+    vertexAttribs[2].offset = offsetof(VertexAttributes, uv);
     
     VertexBufferLayout vertexBufferLayout;
     vertexBufferLayout.attributeCount = (uint32_t)vertexAttribs.size();
@@ -333,11 +333,13 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
     // bindGroupLayout = nullptr;
     BindGroupLayoutEntry bindingLayouts[3];
     {
+        AD_LOG(info) << "sizeof(SceneUniforms) = " << sizeof(SceneUniforms) << "  sizeof(LightData) = " << sizeof(LightShaderData);
+
         bindingLayouts[0] = Default;
         bindingLayouts[0].binding = 0;
         bindingLayouts[0].visibility = ShaderStage::Vertex | ShaderStage::Fragment;
         bindingLayouts[0].buffer.type = BufferBindingType::Uniform;
-        bindingLayouts[0].buffer.minBindingSize = sizeof(SceneUniforms);
+        bindingLayouts[0].buffer.minBindingSize = sizeof(SceneUniforms) + (SceneUniforms::MaxLights * sizeof(LightShaderData));
         
         bindingLayouts[1] = Default;
         bindingLayouts[1].binding = 1;
@@ -411,28 +413,22 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
         AD_LOG(info) << "Depth texture view: " << depthTextureView;
     }
 
-    // Create uniform buffer
-    {
-        BufferDescriptor bufferDesc;
-        bufferDesc.size = sizeof(SceneUniforms);
-        bufferDesc.usage = BufferUsage::CopyDst | BufferUsage::Uniform;
-        bufferDesc.mappedAtCreation = false;
-        uniformBuffer = device.createBuffer(bufferDesc);
-    }
-
     // not really needed here first thing done when rendering a frame
-	uniforms.color = { 1.0f, 1.0f, 1.0f, 1.0f };
 	uniforms.time = 1.0f;
-	queue.writeBuffer(uniformBuffer, 0, &uniforms, sizeof(SceneUniforms));
 
 	// Create bindings for test objects
 	{
+        uniformBuffer_ = bufferManager_->allocUniformChunk(sizeof(SceneUniforms) + (64 * sizeof(LightShaderData)) );
+        
         BindGroupEntry bindings[3];
 
-        bindings[0].binding = 0;
-        bindings[0].buffer = uniformBuffer;
-        bindings[0].offset = 0;
-        bindings[0].size = sizeof(SceneUniforms);
+        {
+            BufferChunk &b = *uniformBuffer_;
+            bindings[0].binding = 0;
+            bindings[0].buffer = b.getBuffer();
+            bindings[0].offset = b.getStartOffset();
+            bindings[0].size = b.getSize();
+        }
 
         instanceBuffer_ = bufferManager_->allocStorageChunk(128 * sizeof(InstanceData));
 
@@ -540,7 +536,8 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
     		return 1;
     	}
 
-        success = meshLoader_->loadGeometry("cube", pointData, indexData, 6 /* dimensions */);
+        //        success = meshLoader_->loadGeometry("cube", pointData, indexData, 6 /* dimensions */);
+        success = meshLoader_->loadGeometry("sphere", pointData, indexData, 6 /* dimensions */);
 
         cubeMesh = ObjectBase::make<DrawableMesh>();
         cubeMesh->indexCount_ = (int)indexData.size();
@@ -551,7 +548,7 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
 
         Matrix4f lt(1.0);
         
-        lt = glm::translate(lt, glm::vec3(0.0, 0.0, 2.0));
+        lt = glm::translate(lt, glm::vec3(0.0, 0.0, 3.0));
         ringGroup_->setLocalTransform(lt);
         
         AD_LOG(info) << lt;
@@ -560,13 +557,24 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
         glm::mat4 drot(1.0);
         drot = glm::rotate(drot, -glm::pi<float>()/6, glm::vec3(0,1.0,0)); // rotate about Y
         
-        Vec3f trans = glm::vec3(0.0, 0.0, 2.5);
+        Vec3f trans = glm::vec3(0.0, 0.0, 3.5);
 
         AD_LOG(info) << drot;
 
+        // create a test "Scene"
+        // Create some lights
+        
+        {
+            lights_.clear();
+            ObjectPtr<LightNode> light = ObjectBase::make<LightNode>();
+            light->setLightType(LightNode::directional);
+            light->setDiffuse(Color3f(1.f,1.f,1.f));
+            
+            lights_.push_back(light);
+        }
+        
         // layout some objects in a ring around the ringGroup_ node
         // assign one of the test materials to it.
-        
         uint32_t materialId = 0;
         for(int i = 0; i < 12; ++i)  {
         
@@ -709,7 +717,7 @@ GpuEngineImpl::renderFrame()  {
 
         // update data on GPU for active (visible) object instances.
  
-        // material data array
+        // upload material data array
         {
             Buffer iBuffer = materialBuffer_->getBuffer();
             auto offset = materialBuffer_->getStartOffset();
@@ -736,7 +744,7 @@ GpuEngineImpl::renderFrame()  {
         }
 
         
-        // instance data array
+        // upload instance data array
         {
             Buffer iBuffer = instanceBuffer_->getBuffer();
             auto offset = instanceBuffer_->getStartOffset();
@@ -759,6 +767,52 @@ GpuEngineImpl::renderFrame()  {
                 queue.writeBuffer(iBuffer, offset, &iData[0], i );
                 offset += i;
                 uploadCount = (int)std::min(maxCount,countLeft);
+            }
+        }
+        
+        // upload uniforms data "scene globals" PLUS array of lights
+        {
+            const int headerSize = sizeof(SceneUniforms);
+            
+            // update the global uniform data - camer transforms etc
+            auto camera = camNode_->getCamera();
+            uniforms.viewMatrix = camera->getView();
+            uniforms.projectionMatrix = camera->getProjection();
+            uniforms.numLights = (uint32_t)lights_.size();
+
+            const int initialMax = (int)((bufferSize-headerSize)/sizeof(LightShaderData));
+            int countLeft = (int)lights_.size();
+            int uploadCount = (int)std::min(initialMax,countLeft);
+            
+
+            const int maxCount = (int)(bufferSize/sizeof(LightShaderData));
+ 
+            Buffer iBuffer = uniformBuffer_->getBuffer();
+            auto offset = uniformBuffer_->getStartOffset();
+
+            uint8_t *outBytes = workBuffer.get();
+            (*(SceneUniforms *)outBytes) = uniforms;
+            outBytes += headerSize;
+            
+            int lightIx = 0;
+                
+            for(;;) {
+                for(int i = 0; i < uploadCount; ++i) {
+                    lights_[lightIx]->loadShaderData(*(LightShaderData*)outBytes);
+                    ++lightIx;
+                    outBytes += sizeof(LightShaderData);
+                }
+                if(outBytes > workBuffer.get()) {
+                    int writeSize = (int)(outBytes - workBuffer.get());
+                    outBytes = workBuffer.get();
+                    queue.writeBuffer(iBuffer, offset, outBytes, writeSize );
+                    countLeft -= uploadCount;
+                    if(countLeft <= 0) {
+                        break;
+                    }
+                    offset += writeSize;
+                    uploadCount = (int)std::min(maxCount,countLeft);
+                }
             }
         }
     }
@@ -812,12 +866,7 @@ GpuEngineImpl::renderFrame()  {
     renderPass.setPipeline(pipeline);
 
     { // draw the models ( needs to be organized )}
-        // set the camera transforms
-        auto camera = camNode_->getCamera();
-        uniforms.viewMatrix = camera->getView();
-        uniforms.projectionMatrix = camera->getProjection();
-        queue.writeBuffer(uniformBuffer, 0, &uniforms, sizeof(SceneUniforms));
-
+        
 //        if(timing().isDebugFrame()) {
 //            AD_LOG(info)  << "DEBUG FRAME " <<  timing().frameNumber();
 //        }
@@ -834,8 +883,8 @@ GpuEngineImpl::renderFrame()  {
                 const BufferChunk &iChunk = mesh->iChunk_;
                 const BufferChunk &vChunk = mesh->vChunk_;
 
-                renderPass.setVertexBuffer(0, vChunk.getBuffer(), vChunk.getStartOffset(), vChunk.alignedSize());
-                renderPass.setIndexBuffer(iChunk.getBuffer(), IndexFormat::Uint16, iChunk.getStartOffset(), iChunk.alignedSize());
+                renderPass.setVertexBuffer(0, vChunk.getBuffer(), vChunk.getStartOffset(), vChunk.getSize());
+                renderPass.setIndexBuffer(iChunk.getBuffer(), IndexFormat::Uint16, iChunk.getStartOffset(), iChunk.getSize());
                 
                 renderPass.drawIndexed(mesh->indexCount(), 1, 0, 0, (uint32_t)i);
             }

@@ -12,6 +12,7 @@
 #include "artd/Thread.h"
 #include "artd/Viewport.h"
 #include "artd/CameraNode.h"
+#include "artd/LightNode.h"
 #include "artd/Camera.h"
 #include "artd/CachedMeshLoader.h"
 #include "artd/GpuBufferManager.h"
@@ -36,10 +37,11 @@ struct SceneUniforms {
     glm::mat4x4 viewMatrix;
     glm::mat4x4 modelMatrix;  // model specific
 
-    // below here is really frame global specific
-    std::array<float, 4> color;
     float time;
-    float _pad[3];
+    uint32_t numLights;
+    float _pad[2];
+
+    static const int MaxLights = 64;
 };
 
 // Have the compiler check byte alignment
@@ -99,7 +101,6 @@ protected:
 
     // global scene uniforms ?? )( I htink has model matrix in int too !!
     BindGroup bindGroup = nullptr;
-    Buffer uniformBuffer = nullptr;
 
     SceneUniforms uniforms;
     
@@ -110,6 +111,7 @@ protected:
     ObjectPtr<ShaderManager>    shaderManager_;
 
     // there won't be too many of these ?? they are 128 bits !!
+    ObjectPtr<BufferChunk>      uniformBuffer_;
     ObjectPtr<BufferChunk>      instanceBuffer_;
     ObjectPtr<BufferChunk>      materialBuffer_;
 
@@ -178,7 +180,9 @@ protected:
     ObjectPtr<TransformNode> ringGroup_;
     // TODO: to be grouped by shader/pipeline  Just a hack for now.
     std::vector<MeshNode*> drawables_;
-    
+
+    // TODO: active vs: turned off ( visible invisible ) with or without parents ...
+    std::vector<ObjectPtr<LightNode>> lights_;
     // TODO: Integrate into ResourceManager, or create a material manager to handle dynamism creating/deleting
     std::vector<ObjectPtr<MaterialData>> materials_;
 
@@ -205,7 +209,7 @@ protected:
     struct VertexAttributes {
         Vec3f position;
         Vec3f normal;
-        Vec3f color;
+        glm::vec2 uv;
     };
 
 // end added 056 items

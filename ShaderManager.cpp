@@ -46,6 +46,17 @@ struct VertexInput {
 	@location(2) color: vec3f,
 };
 
+// SEE: https://www.w3.org/TR/WGSL/#alignment-and-size
+// for alignment specs
+
+struct LightData {
+    orientation: mat3x3f,  // align 16 boundary - consumes 48
+    position:  vec3f,      // align 16 - consumes 12
+    lightType: u32,        // align 4 consumes 4
+    diffuse:   vec3f,      // align 16 consumes 12
+    _pad1: f32,            // align 4  consumes 4
+};
+
 /**
  * A structure holding the value of scene global uniforms
  */
@@ -53,16 +64,18 @@ struct SceneUniforms {
     projectionMatrix: mat4x4f,
     viewMatrix: mat4x4f,
     modelMatrix: mat4x4f,
-    color: vec4f,
     time: f32,
+    numLights: u32,  // will this work ?
+    pad1: u32,
+    pad2: u32,
+    lights: array<LightData,64>
 };
 
 struct InstanceData {
     modelMatrix: mat4x4f,
     materialId: u32,
     objectId: u32,
-    unused1_: u32, // pad for 16 byte alignment
-    unused2_: u32, // pad for 16 bytes alignment
+    unused2_: u32, // pad for 16 bytes alignment (needed ? )
 };
 
 struct MaterialData {
@@ -108,31 +121,30 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     let material = materialArray[in.materialIx]; // indirection or by value ? or is it a reference ?
 
     // for testing
-    return vec4f(material.diffuse,1.0);
+//    return vec4f(material.diffuse,1.0);
 
-//	let lightColor1 = vec3f(1.0, 1.0, 1.0);
-//	let lightColor2 = vec3f(0.4, 0.4, 0.6);
-//	let lightDirection1 = normalize(vec3f(0.5, -0.1, -0.4));
-//	let lightDirection2 = normalize(vec3f(-0.5, 0.1, 0.3));
-//	let shading1 = max(0.0, dot(lightDirection1, normal));
-//	let shading2 = max(0.0, dot(lightDirection2, normal));
-//
-//	let shading = shading1 * lightColor1 + shading2 * lightColor2;
-//
-//	var color = vec3(.8,0.8,0.8) * shading;
-//    if(color.x > 1.0) {
-//        color.x = 1.0;
-//    }
-//    if(color.y > 1.0) {
-//        color.y = 1.0;
-//    }
-//    if(color.z > 1.0) {
-//        color.z = 1.0;
-//    }
-//
-//	// Gamma-correction
-//	let corrected_color = pow(color, vec3f(2.2));
-//    return vec4f(corrected_color,1.0); // corrected_color, uMyUniforms.color.a);
+	let lightColor1 = vec3f(1.0, 1.0, 1.0);
+	let lightColor2 = vec3f(0.4, 0.4, 0.6);
+	let lightDirection1 = normalize(vec3f(0.5, -0.1, -0.4));
+	let lightDirection2 = normalize(vec3f(-0.5, 0.1, 0.3));
+	let shading1 = max(0.0, dot(lightDirection1, normal));
+	let shading2 = max(0.0, dot(lightDirection2, normal));
+	let shading = shading1 * lightColor1 + shading2 * lightColor2;
+
+	var color = vec3(.8,0.8,0.8) * shading;
+    if(color.x > 1.0) {
+        color.x = 1.0;
+    }
+    if(color.y > 1.0) {
+        color.y = 1.0;
+    }
+    if(color.z > 1.0) {
+        color.z = 1.0;
+    }
+
+	// Gamma-correction
+	let corrected_color = pow(color, vec3f(2.2));
+    return vec4f(corrected_color,1.0); // corrected_color, uMyUniforms.color.a);
 
 
 }

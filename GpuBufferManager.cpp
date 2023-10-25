@@ -51,24 +51,20 @@ class ARTD_API_GPU_ENGINE GpuBufferManagerImpl
             size_ = 0;
         }
 
-        INL int64_t getEndOffset() const {
-            return(getStartOffset() + alignedSize());
+        INL void setParent(ManagedGpuBuffer *parent) {
+            parent_ = static_cast<Buffer*>(parent);
         }
-        
+
+        INL ManagedGpuBuffer *getParent() const {
+            return(static_cast<ManagedGpuBuffer*>(parent_));
+        }
+
         INL void setStart(uint32_t start) {
             start_ = start >> 2;
         }
         
         INL void setSize(int32_t size) {
             size_ = size;
-        }
-
-        INL ManagedGpuBuffer *getParent() const {
-            return(static_cast<ManagedGpuBuffer*>(parent_));
-        }
-        
-        INL void setParent(ManagedGpuBuffer *parent) {
-            parent_ = static_cast<Buffer*>(parent);
         }
     };
 
@@ -136,8 +132,16 @@ class ARTD_API_GPU_ENGINE GpuBufferManagerImpl
             piece->setParent(this);
             pieces_[piece] = piece;
         }
- 
- //       void allocOrReallocPiece(BufferDataImpl *piece, int newSize);
+        INL uint32_t alignedSize(uint32_t size) const {
+            return((usage_ & BufferUsage::Uniform) ? ARTD_ALIGN_UP(size, 16) : ARTD_ALIGN_UP(size, 4));
+        }
+
+        INL int64_t getEndOffset(BufferChunkImpl *piece) const {
+            return(piece->getStartOffset() + alignedSize(piece->getSize()));
+        }
+        
+
+        //       void allocOrReallocPiece(BufferDataImpl *piece, int newSize);
 
         INL int32_t availableNow() {
             return(myAllocationSize_ - currentEnd_);
@@ -175,8 +179,8 @@ class ARTD_API_GPU_ENGINE GpuBufferManagerImpl
                 parent->removePiece(piece);
             }
         
-            // align to float 4 bytes
-            int allocSize = ARTD_ALIGN_UP(newSize, 4);
+            // align size for useage
+            int allocSize = alignedSize(newSize);
             piece->setStart((uint32_t)currentEnd_);
             currentEnd_ += allocSize;
             if (currentEnd_ > maxUsed_) {
@@ -188,14 +192,14 @@ class ARTD_API_GPU_ENGINE GpuBufferManagerImpl
 
         void removePiece(BufferChunkImpl *piece) {
         
-            if (piece->getEndOffset() == currentEnd_) {
+            if (getEndOffset(piece) == currentEnd_) {
                 // TODO: 64 bit ?
                 currentEnd_ = (int32_t)piece->getStartOffset();
                 // TODO: remove any free space below end if present.
             }
             else
             {
-                freeSize_ += piece->getSize();
+                freeSize_ += piece->getSize();  // TODO: should this be aligned size ??
                 /*
                 LOGDEBUG("\n\n\n       %p removing piece at %d freeSize %d oldFree %d", this, piece->getStartOffset(), freeSize_, firstFreeOffset_);
                 for (auto itx = pieces_.begin(); itx != pieces_.end(); ++itx) {
@@ -433,7 +437,7 @@ public:
 
         BufferDescriptor bufferDesc;
 
-        bufferDesc.size = ARTD_ALIGN_UP(0x0FFFFFF,4);
+        bufferDesc.size = ARTD_ALIGN_UP(size,16);
         bufferDesc.usage = usage;
         bufferDesc.mappedAtCreation = false;
 
@@ -523,6 +527,12 @@ public:
         }
     }
 
+    ObjectPtr<BufferChunk> allocUniformChunk(uint32_t dataSize) override {
+        ObjectPtr<BufferChunk> retBc;
+        allocOrRealloc(retBc,dataSize,BufferUsage::CopyDst | BufferUsage::Uniform);
+        return(retBc);
+    }
+
     ObjectPtr<BufferChunk> allocIndexChunk(int count, const uint16_t *data) override {
 
         ObjectPtr<BufferChunk> retBc;
@@ -543,12 +553,12 @@ public:
         }
         return(retBc);
     }
-
     ObjectPtr<BufferChunk> allocStorageChunk(uint32_t dataSize) override {
         ObjectPtr<BufferChunk> retBc;
         allocOrRealloc(retBc,dataSize,BufferUsage::CopyDst | BufferUsage::Storage);
         return(retBc);
     }
+
     
 };
 
