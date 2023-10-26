@@ -71,6 +71,15 @@ public:
     INL void setLightType(Type t) {
         data_.type_ = (uint32_t)t;
     }
+    
+    // will set direction (orientation) of node such that it's Z is the direction
+    // and the orientation's Y is "up" unless the direction is looking near up or down.
+    // this will be relative to the parent node !
+    // TODO: probably shoudl be a transform node method "setZFacing" or whatever, like facing the camera or some
+    // other object.
+    
+    void setDirection(const glm::vec3 &direction);
+    
     // TODO:
     INL void setDiffuse(const Color3f &color) {
         data_.diffuse_ = glm::vec4(color,0);

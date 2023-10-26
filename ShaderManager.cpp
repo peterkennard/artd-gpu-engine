@@ -125,19 +125,36 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 	let normal = in.normal;
     let material = materialArray[in.materialIx]; // indirection or by value ? or is it a reference ?
 
-    // for testing
-//    return vec4f(material.diffuse,1.0);
+    var colorMult = vec3f(0,0,0);
 
-	let lightColor1 = vec3f(1.0, 1.0, 1.0);
-	let lightDirection1 = normalize(vec3f(0.5, -0.1, -0.4));
-	let shading1 = max(0.0, dot(lightDirection1, normal));
+    for(var lix = u32(0); lix < scnUniforms.numLights; lix += 1)  {
 
-//	let lightColor2 = vec3f(0.4, 0.4, 0.6);
-//	let lightDirection2 = normalize(vec3f(-0.5, 0.1, 0.3));
-//	let shading2 = max(0.0, dot(lightDirection2, normal));
-	let shading = shading1 * lightColor1; //  + shading2 * lightColor2;
+        let light = scnUniforms.lights[lix];
 
-	var color = material.diffuse * shading;
+        switch light.lightType {
+            case 0: { // directional
+
+            //
+            //	let lightColor1 = vec3f(1.0, 1.0, 1.0);
+            let lightDirection1 = normalize(vec3f(0.5, .5, 0.1));
+
+                var shading = dot(lightDirection1,normal); // z axis of rotation - pre normalized
+
+                // var shading = dot(light.orientation[2],normal); // z axis of rotation - pre normalized
+                shading += .5;
+                shading *= 1.0/1.5;
+
+                if(shading > 0) {
+                    colorMult += shading;
+                 }
+            }
+            default: {
+                // do nothing !
+            }
+        }
+    }
+
+	var color = material.diffuse * colorMult; // shading;
     if(color.x > 1.0) {
         color.x = 1.0;
     }

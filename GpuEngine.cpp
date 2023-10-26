@@ -568,6 +568,7 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
             lights_.clear();
             ObjectPtr<LightNode> light = ObjectBase::make<LightNode>();
             light->setLightType(LightNode::directional);
+            light->setDirection(Vec3f(0.5, .5, 0.1));
             light->setDiffuse(Color3f(1.f,1.f,1.f));
             
             lights_.push_back(light);
