@@ -35,7 +35,7 @@ struct SceneUniforms {
 	// scene frame specific items
     glm::mat4x4 projectionMatrix;
     glm::mat4x4 viewMatrix;
-    glm::mat4x4 modelMatrix;  // model specific
+    glm::mat4x4 vpMatrix;  // projection * view
 
     float time;
     uint32_t numLights;

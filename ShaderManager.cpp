@@ -63,7 +63,7 @@ struct LightData {
 struct SceneUniforms {
     projectionMatrix: mat4x4f,
     viewMatrix: mat4x4f,
-    modelMatrix: mat4x4f,
+    vpMatrix: mat4x4f,
     time: f32,
     numLights: u32,  // will this work ?
     pad1: u32,
@@ -93,7 +93,7 @@ struct VertexOutput {
 
 
 // Bound variable is a struct
-@group(0) @binding(0) var<uniform> uMyUniforms: SceneUniforms;
+@group(0) @binding(0) var<uniform> scnUniforms: SceneUniforms;
 // TODO: not sure if this is right for the array guessing
 @group(0) @binding(1) var<storage> instanceArray : array<InstanceData>;
 @group(0) @binding(2) var<storage> materialArray : array<MaterialData>;
@@ -108,9 +108,14 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 	var out: VertexOutput;
 // Use the instance index to retrieve the matrix !!  indexData[in.instanceIx]
 
-    out.position = uMyUniforms.projectionMatrix * uMyUniforms.viewMatrix * instanceArray[in.instanceIx].modelMatrix * vec4f(in.position, 1.0);
-	// Forward the normal TODO: pass in a normal "pose" matrix this uses a square root.
-    out.normal = normalize((instanceArray[in.instanceIx].modelMatrix * vec4f(in.normal, 0.0)).xyz);
+    let mMat = instanceArray[in.instanceIx].modelMatrix;
+
+//    out.position = scnUniforms.projectionMatrix * scnUniforms.viewMatrix * mMat * vec4f(in.position, 1.0);
+    out.position = scnUniforms.vpMatrix * mMat * vec4f(in.position, 1.0);
+	// Forward the normal TODO: pass in a normal "pose" matrix? in instance data ?
+    let nMat = mat3x3f(mMat[0].xyz, mMat[1].xyz, mMat[2].xyz);
+    out.normal = normalize(nMat * in.normal);
+
 	out.materialIx = instanceArray[in.instanceIx].materialId;
     return out;
 }
@@ -124,14 +129,15 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 //    return vec4f(material.diffuse,1.0);
 
 	let lightColor1 = vec3f(1.0, 1.0, 1.0);
-	let lightColor2 = vec3f(0.4, 0.4, 0.6);
 	let lightDirection1 = normalize(vec3f(0.5, -0.1, -0.4));
-	let lightDirection2 = normalize(vec3f(-0.5, 0.1, 0.3));
 	let shading1 = max(0.0, dot(lightDirection1, normal));
-	let shading2 = max(0.0, dot(lightDirection2, normal));
-	let shading = shading1 * lightColor1 + shading2 * lightColor2;
 
-	var color = vec3(.8,0.8,0.8) * shading;
+//	let lightColor2 = vec3f(0.4, 0.4, 0.6);
+//	let lightDirection2 = normalize(vec3f(-0.5, 0.1, 0.3));
+//	let shading2 = max(0.0, dot(lightDirection2, normal));
+	let shading = shading1 * lightColor1; //  + shading2 * lightColor2;
+
+	var color = material.diffuse * shading;
     if(color.x > 1.0) {
         color.x = 1.0;
     }
@@ -143,8 +149,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     }
 
 	// Gamma-correction
-	let corrected_color = pow(color, vec3f(2.2));
-    return vec4f(corrected_color,1.0); // corrected_color, uMyUniforms.color.a);
+	let corrected_color = color; // pow(color, vec3f(2.2));
+    return vec4f(corrected_color,1.0); // corrected_color, scnUniforms.color.a);
 
 
 }

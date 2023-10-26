@@ -778,6 +778,8 @@ GpuEngineImpl::renderFrame()  {
             auto camera = camNode_->getCamera();
             uniforms.viewMatrix = camera->getView();
             uniforms.projectionMatrix = camera->getProjection();
+            uniforms.vpMatrix = uniforms.projectionMatrix * uniforms.viewMatrix;
+
             uniforms.numLights = (uint32_t)lights_.size();
 
             const int initialMax = (int)((bufferSize-headerSize)/sizeof(LightShaderData));
