@@ -86,19 +86,31 @@ GpuEngineImpl::initGlfwDisplay() {
         AD_LOG(info) << "Could not open window!";
         return 1;
     }
-
+#define INL ARTD_ALWAYS_INLINE
     class Whandler
         : public WindowHandler
     {
     protected:
         Whandler(GpuEngineImpl*owner) : WindowHandler(owner)
         {}
+        INL static GpuEngineImpl &getOwner(GLFWwindow* window) {
+            return(reinterpret_cast<Whandler *>(glfwGetWindowUserPointer(window))->owner());
+        }
+        
     public:
-        static void keyCallback(GLFWwindow* /*window*/, int /*key*/, int /*scancode*/, int /*action*/, int /*mods*/) {
-            AD_LOG(info) << "###### got key";
+        static void keyCallback(GLFWwindow* window, int /*key*/, int scancode, int /*action*/, int /*mods*/) {
+            getOwner(window).inputQueue_->postEvent(nullptr, [scancode](void *) {
+                AD_LOG(print) << "lambSize " << sizeof(LambdaEventQueue::Lamb) <<  " Processing key " << scancode;
+                
+                
+                
+                return(false);
+            });
             
+            AD_LOG(info) << "###### got key";
         }
     };
+#undef INL
 
     glfwSetWindowUserPointer(window, reinterpret_cast<void *>(&windowHandler_));
     surface = glfwGetWGPUSurface(instance, window);
@@ -110,6 +122,16 @@ GpuEngineImpl::initGlfwDisplay() {
 }
 
 int GpuEngineImpl::init(bool headless, int width, int height) {
+    
+    {
+        auto eventPool = ObjectBase::make<LambdaEventQueue::LambdaEventPool>();
+ 
+        inputQueue_ = ObjectBase::make<LambdaEventQueue>(eventPool);
+        updateQueue_ = ObjectBase::make<LambdaEventQueue>(eventPool);
+    }
+    
+    
+    
     width_ = width;
     height_ = height;
     headless_ = headless;
@@ -694,6 +716,8 @@ GpuEngineImpl::processEvents() {
     }
     timing_.tickFrame();
     fpsMonitor_.tickFrame(timing_);
+    inputQueue_->executeEvents();
+    updateQueue_->executeEvents();
     return(true);
 }
 

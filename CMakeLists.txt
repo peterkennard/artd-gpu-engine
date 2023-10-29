@@ -51,6 +51,7 @@ endif()
 target_link_libraries(artd-gpu-engine PRIVATE
     artd-jlib-base
     artd-jlib-io
+    artd-jlib-util
     artd-lib-vecmath
     artd-jlib-thread
     glfw

@@ -17,6 +17,7 @@
 #include "artd/CachedMeshLoader.h"
 #include "artd/GpuBufferManager.h"
 #include "artd/TimingContext.h"
+#include "artd/LambdaEventQueue.h"
 #include "./KeyInputManager.h"
 #include "./FpsMonitor.h"
 
@@ -124,6 +125,10 @@ protected:
 
     SceneUniforms uniforms;
     
+    //
+    ObjectPtr<LambdaEventQueue> inputQueue_;
+    ObjectPtr<LambdaEventQueue> updateQueue_;
+
     // resource management items
     ObjectPtr<KeyInputManager>  keyboardManager_;
     ObjectPtr<ResourceManager>  resourceManager_;
