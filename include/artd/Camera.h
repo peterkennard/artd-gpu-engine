@@ -28,6 +28,7 @@ protected:
     int lastTransformStamp_ = -1;
     int lastViewportStamp_ = -1;
 
+    Matrix4f pose_;
     Matrix4f view_;
     Matrix4f projection_;
     
@@ -71,6 +72,7 @@ public:
         setViewportAltered();
     }
     const Matrix4f &getView();
+    const Matrix4f &getPose();
 	const Matrix4f &getProjection();
 
     static void poseToView(const glm::mat4 &pose, glm::mat4 &viewOut);

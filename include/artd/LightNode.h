@@ -12,13 +12,9 @@ ARTD_BEGIN
 
 class LightShaderData {
 public:
-    glm::mat3 orientation_;  // align 16 sizeof = 36 ( consumes 48 in buffer )
-    float _pad1[3];
-    // now at byte 48
-    glm::vec3 position_;  // align 16 consumes 12 in buffer
+    glm::mat4 pose_;
+    glm::vec3 diffuse_; // have the "alpha" or "w" be a "blacklight" component for "flourecense" ??
     uint32_t type_; // align 4  - consumes 4
-    // now at byte 64
-    glm::vec4 diffuse_; // have the "alpha" or "w" be a "blacklight" component for "flourecense" ??
     // now at byte 80
 
 //    glm::vec3 ambient_;  // should only an ambient light have this value or should only be diffuse as ambient would just be specular everywhere ?
@@ -61,9 +57,7 @@ public:
 
     INL void loadShaderData(LightShaderData &data) {
 	    if(testSetWorldTransModified(lastTransformStamp_)) {
-	        auto pose = getWorldPose();
-            data_.orientation_ = glm::mat3(pose);
-            data_.position_ = glm::vec3(pose[3]);
+            data_.pose_ = getWorldPose();
 	    }
 	    data = data_;
     }

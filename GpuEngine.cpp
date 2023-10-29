@@ -59,7 +59,8 @@ ARTD_BEGIN
 using namespace wgpu;
 
 
-GpuEngine::GpuEngine() {
+GpuEngine::GpuEngine()
+{
 
 };
 GpuEngine::~GpuEngine() {
@@ -69,6 +70,44 @@ GpuEngine::~GpuEngine() {
 
 namespace fs = std::filesystem;
 
+
+int
+GpuEngineImpl::initGlfwDisplay() {
+    
+    if (!glfwInit()) {
+        std::cerr << "Could not initialize GLFW!" << std::endl;
+        return 1;
+    }
+
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+    window = glfwCreateWindow(width_, height_, "WebGPU Engine", NULL, NULL);
+    if (!window) {
+        AD_LOG(info) << "Could not open window!";
+        return 1;
+    }
+
+    class Whandler
+        : public WindowHandler
+    {
+    protected:
+        Whandler(GpuEngineImpl*owner) : WindowHandler(owner)
+        {}
+    public:
+        static void keyCallback(GLFWwindow* /*window*/, int /*key*/, int /*scancode*/, int /*action*/, int /*mods*/) {
+            AD_LOG(info) << "###### got key";
+            
+        }
+    };
+
+    glfwSetWindowUserPointer(window, reinterpret_cast<void *>(&windowHandler_));
+    surface = glfwGetWGPUSurface(instance, window);
+    glfwSetKeyCallback(window, &Whandler::keyCallback);
+    // glfwSetCharCallback(GLFWwindow* handle, GLFWcharfun cbfun)
+    // glfwSetCharModsCallback(GLFWwindow* handle, GLFWcharmodsfun cbfun)
+    
+    return(0);
+}
 
 int GpuEngineImpl::init(bool headless, int width, int height) {
     width_ = width;
@@ -97,23 +136,16 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
         AD_LOG(error) << "Could not initialize WebGPU!" << std::endl;
         return 1;
     }
+
+    keyboardManager_ = ObjectBase::make<KeyInputManager>();
     
     if(headless_) {
         surface = nullptr;  // done in constructor
     } else {
-        if (!glfwInit()) {
-            std::cerr << "Could not initialize GLFW!" << std::endl;
-            return 1;
+        int ret = initGlfwDisplay();
+        if(ret) {
+            return(ret);
         }
-        
-        glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-        glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-        window = glfwCreateWindow(width_, height_, "WebGPU Engine", NULL, NULL);
-        if (!window) {
-            AD_LOG(info) << "Could not open window!";
-            return 1;
-        }
-        surface = glfwGetWGPUSurface(instance, window);
     }
     
     AD_LOG(info) << "Requesting adapter...";
@@ -163,6 +195,7 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
     // Add an error callback for more debug info
     errorCallback_ = device.setUncapturedErrorCallback([](ErrorType type, char const* message) {
         AD_LOG(error) << "Device error: type " << type << "(" << (message ? message : "" ) << ")";
+        return;
     });
 
     deviceLostCallback_ = device.setDeviceLostCallback([](DeviceLostReason /*reason*/, char const * /*message*/) {
@@ -696,8 +729,9 @@ GpuEngineImpl::renderFrame()  {
     {
         static float angle = 0; // bodge for test
         
-        Matrix4f lt = ringGroup_->getLocalTransform();
-        
+    //    Matrix4f lt = ringGroup_->getLocalTransform();
+       Matrix4f lt = lights_[0]->getLocalTransform();
+
         Matrix4f rot;
         angle += timing_.lastFrameDt() * .2;
         if( angle > (glm::pi<float>()*2)) {
@@ -709,7 +743,9 @@ GpuEngineImpl::renderFrame()  {
         lt[1] = rot[1];
         lt[2] = rot[2];
 
-        ringGroup_->setLocalTransform(lt);
+
+        lights_[0]->setLocalTransform(lt);
+    //    ringGroup_->setLocalTransform(lt);
     }
 
     {
@@ -775,10 +811,11 @@ GpuEngineImpl::renderFrame()  {
         {
             const int headerSize = sizeof(SceneUniforms);
             
-            // update the global uniform data - camer transforms etc
+            // update the global uniform data - camera transforms, lights etc
             auto camera = camNode_->getCamera();
             uniforms.viewMatrix = camera->getView();
             uniforms.projectionMatrix = camera->getProjection();
+            uniforms.eyePose = camera->getPose(); // glm::inverse(camera->getView());
             uniforms.vpMatrix = uniforms.projectionMatrix * uniforms.viewMatrix;
 
             uniforms.numLights = (uint32_t)lights_.size();

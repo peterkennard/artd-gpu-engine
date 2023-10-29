@@ -25,7 +25,7 @@ namespace { // anonymous local namespace
     } else {
         // TODO: though not usually used make sure is always
         // orthonormal and reasonable.  Used mainly for aiming lights.
-        // in code
+        // in code	
 
         // pointing down or up
         Vec3f yVec = glm::cross(dir,glm::vec3(1,0,0));
@@ -46,8 +46,8 @@ namespace { // anonymous local namespace
 } // ene namespace
 
 LightNode::LightNode() {
-    data_.orientation_ = glm::mat3(1.f);
-    data_.position_ = glm::vec3(0,0,0);
+    data_.pose_ = glm::mat3(1.f);
+//    data_.position_ = glm::vec3(0,0,0);
     data_.type_ = Type::directional;
 }
 void

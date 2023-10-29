@@ -17,6 +17,7 @@
 #include "artd/CachedMeshLoader.h"
 #include "artd/GpuBufferManager.h"
 #include "artd/TimingContext.h"
+#include "./KeyInputManager.h"
 #include "./FpsMonitor.h"
 
 #include <array>
@@ -36,7 +37,7 @@ struct SceneUniforms {
     glm::mat4x4 projectionMatrix;
     glm::mat4x4 viewMatrix;
     glm::mat4x4 vpMatrix;  // projection * view
-
+    glm::mat4x4 eyePose; // align 16 boundary - consumes 48
     float time;
     uint32_t numLights;
     float _pad[2];
@@ -59,6 +60,9 @@ static_assert(sizeof(InstanceData) % 16 == 0);
 struct MaterialData  {
     glm::vec3 diffuse;
     int32_t id_;
+    glm::vec3 specular;
+    float pad0_;
+
     INL int32_t getId() {
         return(id_);
     }
@@ -81,6 +85,22 @@ protected:
 
     bool headless_ = true;
     GLFWwindow* window = nullptr;
+
+    class WindowHandler {
+    public:
+        GpuEngineImpl &owner_;
+        INL WindowHandler(GpuEngineImpl *owner)
+            : owner_(*owner)
+        {}
+        INL GpuEngineImpl &owner() {
+            return(owner_);
+        }
+    };
+
+    WindowHandler windowHandler_;
+    int initGlfwDisplay();
+
+
     uint32_t width_;
     uint32_t height_;
     Instance instance = nullptr;
@@ -105,6 +125,7 @@ protected:
     SceneUniforms uniforms;
     
     // resource management items
+    ObjectPtr<KeyInputManager>  keyboardManager_;
     ObjectPtr<ResourceManager>  resourceManager_;
     ObjectPtr<GpuBufferManager> bufferManager_;
     ObjectPtr<CachedMeshLoader> meshLoader_;
@@ -186,8 +207,9 @@ protected:
     // TODO: Integrate into ResourceManager, or create a material manager to handle dynamism creating/deleting
     std::vector<ObjectPtr<MaterialData>> materials_;
 
-    GpuEngineImpl() {
-
+    GpuEngineImpl()
+        : windowHandler_(this)
+    {
         bufferManager_ = GpuBufferManager::create(this);
         viewport_ = ObjectBase::make<Viewport>();
         camNode_ = ObjectBase::make<CameraNode>();

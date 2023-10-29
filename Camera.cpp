@@ -44,11 +44,17 @@ Camera::getView() {
     TransformNode *parent = getParent();
     if(parent != nullptr) {
 	    if(parent->testSetWorldTransModified(lastTransformStamp_)) {
-	        auto pose = parent->getWorldPose();
-            poseToView(pose,view_);
+	        pose_ = parent->getWorldPose();
+            poseToView(pose_,view_);
 	    }
     }
     return(view_);
+}
+
+const Matrix4f &
+Camera::getPose() {
+    getView();
+    return(pose_);
 }
 
 const Matrix4f &

@@ -50,11 +50,10 @@ struct VertexInput {
 // for alignment specs
 
 struct LightData {
-    orientation: mat3x3f,  // align 16 boundary - consumes 48
-    position:  vec3f,      // align 16 - consumes 12
-    lightType: u32,        // align 4 consumes 4
-    diffuse:   vec3f,      // align 16 consumes 12
-    _pad1: f32,            // align 4  consumes 4
+    pose:  mat3x3f,
+    position: vec3f,
+    diffuse: vec3f,
+    lightType: u32,
 };
 
 /**
@@ -64,10 +63,11 @@ struct SceneUniforms {
     projectionMatrix: mat4x4f,
     viewMatrix: mat4x4f,
     vpMatrix: mat4x4f,
+    eyePose:  mat4x4f,  // need inverse view ? or this ?
     time: f32,
-    numLights: u32,  // will this work ?
-    pad1: u32,
-    pad2: u32,
+    numLights: u32,
+    pad1: f32,
+    pad2: f32,
     lights: array<LightData,64>
 };
 
@@ -81,13 +81,15 @@ struct InstanceData {
 struct MaterialData {
     diffuse: vec3f,
     unused_: f32,  // id ? we need transparency ??
+    specular: vec3f
 };
 
 struct VertexOutput {
     @builtin(position) position: vec4f,
-    @location(0) normal: vec3f,
-    @location(1) texUV:  vec2f,  // TBD unused now
-    @location(2) @interpolate(flat) materialIx: u32
+    @location(0) worldPos: vec4f,
+    @location(1) normal: vec3f,
+    @location(2) texUV:  vec2f,  // TBD unused now
+    @location(3) @interpolate(flat) materialIx: u32
 };
 
 
@@ -110,9 +112,11 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 
     let mMat = instanceArray[in.instanceIx].modelMatrix;
 
-//    out.position = scnUniforms.projectionMatrix * scnUniforms.viewMatrix * mMat * vec4f(in.position, 1.0);
-    out.position = scnUniforms.vpMatrix * mMat * vec4f(in.position, 1.0);
-	// Forward the normal TODO: pass in a normal "pose" matrix? in instance data ?
+    out.worldPos = mMat * vec4f(in.position, 1.0);
+    out.position = scnUniforms.vpMatrix * out.worldPos;
+
+	// Forward the normal
+	// TODO: pass in a normal "pose" matrix? in instance data ?
     let nMat = mat3x3f(mMat[0].xyz, mMat[1].xyz, mMat[2].xyz);
     out.normal = normalize(nMat * in.normal);
 
@@ -122,10 +126,12 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
-	let normal = in.normal;
+	let normal = normalize(in.normal); // the interpolator doesn't keep it normalized !!! ie: rotate it !
+
     let material = materialArray[in.materialIx]; // indirection or by value ? or is it a reference ?
 
-    var colorMult = vec3f(0,0,0);
+    var diffuseMult = vec3f(0,0,0);
+    var specularMult = vec3f(0,0,0);
 
     for(var lix = u32(0); lix < scnUniforms.numLights; lix += 1)  {
 
@@ -134,18 +140,66 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
         switch light.lightType {
             case 0: { // directional
 
-            //
-            //	let lightColor1 = vec3f(1.0, 1.0, 1.0);
-            let lightDirection1 = normalize(vec3f(0.5, .5, 0.1));
+                var shading = dot(light.pose[2],normal); // z axis of rotation - pre normalized
 
-                var shading = dot(lightDirection1,normal); // z axis of rotation - pre normalized
+                // var shading = dot(lightDirection1,normal); // z axis of rotation - pre normalized
+//                shading += .5;
+//                shading *= 1.0/1.5;
 
-                // var shading = dot(light.orientation[2],normal); // z axis of rotation - pre normalized
-                shading += .5;
-                shading *= 1.0/1.5;
+//  https://en.wikipedia.org/wiki/Blinn%E2%80%93Phong_reflection_model
+//                //Calculate the half vector between the light vector and the view vector.
+//                //This is typically slower than calculating the actual reflection vector
+//                // due to the normalize function's reciprocal square root
+//                float3 H = normalize(lightDir + viewDir);
+//
+//                //Intensity of the specular light
+//                float NdotH = dot(normal, H);
+//                intensity = pow(saturate(NdotH), specularHardness);
+//
+//                //Sum up the specular light factoring
+//                OUT.Specular = intensity * light.specularColor * light.specularPower / distance;
+//
+//      https://registry.khronos.org/OpenGL-Refpages/gl4/html/reflect.xhtml
+//      reflection dir = glsl::reflect(I, N) For a given incident vector vec
+//      and surface normal N reflect returns the reflection direction
+//      calculated as I - 2.0 * dot(N, I) * N.
+//
+	            var incidence = dot(light.pose[2], normal);
+                if(incidence > 0.) {
+                    var reflectDirection = reflect(light.pose[2], normal);
+                    var toView = normalize(in.worldPos.xyz - scnUniforms.eyePose[3].xyz); // vector to eye from position.
+
+                    var d = dot(reflectDirection, toView);
+                    var specPower = 0.0;
+
+                    // 1 minute × π/(60 × 180) = 0.0002909 radians
+                    // sun == 32 minutes ( 16 minutes radius )
+                    // so if d > cos 16 minutes then size of sun
+
+                     // if(d > .99999)  // way bigger than sun or moon which cos(.0002909)
+                     if(d > cos( 50  * .0002909))
+                     {
+                        specPower = 1.0;
+                    } // .2 * (pow(max(d, 0.0), 10.1 ) - 1060.0); // shininess);
+                    if(specPower < 0.0) {
+                        specPower = 0.;
+                    }
+                    specularMult = vec3f(specPower,specPower,specPower);
+                }
+
+//	            var incidence = dot(light.pose[2], normal);
+//                if(incidence > .98) {
+//                    var inverseView = scnUniforms.eyePose;
+//                    var eyePos = vec3(inverseView[3].xyz);
+//                    var viewNormal = normalize(eyePos - vec3f(in.position.xyz));
+//                    var reflectDirection = reflect(light.pose[2], normal);
+//                    var d = .2 * dot(reflectDirection, viewNormal);
+//		            var specPower = pow(max(d, 0.0), .01 ); // shininess);
+//		            specularMult = vec3f(specPower,specPower,specPower);
+//		        }
 
                 if(shading > 0) {
-                    colorMult += shading;
+                    diffuseMult += shading;
                  }
             }
             default: {
@@ -154,7 +208,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
         }
     }
 
-	var color = material.diffuse * colorMult; // shading;
+	var color = material.diffuse * diffuseMult + specularMult; // shading;
     if(color.x > 1.0) {
         color.x = 1.0;
     }
