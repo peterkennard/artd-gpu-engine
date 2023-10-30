@@ -39,7 +39,9 @@ struct SceneUniforms {
     glm::mat4x4 viewMatrix;
     glm::mat4x4 vpMatrix;  // projection * view
     glm::mat4x4 eyePose; // align 16 boundary - consumes 48
+    float test[16];
     float time;
+
     uint32_t numLights;
     float _pad[2];
 
@@ -224,6 +226,7 @@ protected:
         cam->setViewport(viewport_);
         // TODO: we need a scene
         ringGroup_ = ObjectBase::make<TransformNode>();
+        std::memset(&uniforms,0,sizeof(uniforms));
     };
     ~GpuEngineImpl() {
         releaseResources();

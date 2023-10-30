@@ -98,16 +98,52 @@ GpuEngineImpl::initGlfwDisplay() {
         }
         
     public:
-        static void keyCallback(GLFWwindow* window, int /*key*/, int scancode, int /*action*/, int /*mods*/) {
-            getOwner(window).inputQueue_->postEvent(nullptr, [scancode](void *) {
-                AD_LOG(print) << "lambSize " << sizeof(LambdaEventQueue::Lamb) <<  " Processing key " << scancode;
+        static void keyCallback(GLFWwindow* window, int key, int /*scancode*/, int action, int mods) {
+            // max glfw key is  #define GLFW_KEY_LAST               GLFW_KEY_MENU = 348
+            // ALL GLFW MODIFIERS == 0X03F - A BYTE IS OK
+            // ACTION IS GLFW_PRESS, GLFW_RELEASE, OR GLFW_REPEAT ( 0 OR 1 OR 2)
+
+            getOwner(window).inputQueue_->postEvent(window, [key, action, mods](void *arg) {
                 
+                static int index = 0;
                 
-                
+                if((action & 1) != 0) {
+                    return(false);
+                }
+                auto &owner = getOwner((GLFWwindow*)arg);
+                float inc = 0;
+                if(key >= GLFW_KEY_0 && key <= GLFW_KEY_9) {
+                    index = (key - GLFW_KEY_0);
+                } else {
+                    
+                    switch(key) {
+                        case GLFW_KEY_RIGHT:
+                            inc = .005;
+                            break;
+                        case GLFW_KEY_LEFT:
+                            inc = -.005;
+                            break;
+                        case GLFW_KEY_DOWN:
+                            inc = -.05;
+                            break;
+                        case GLFW_KEY_UP:
+                            inc = .05;
+                            break;
+                        default:
+                            AD_LOG(print) << "Processing key " << key << " mods " << std::hex << mods;
+                            return(false);
+                    }
+                }
+                inc += owner.uniforms.test[index];
+                if(inc < 0.0) {
+                    inc = 0.0;
+                } else if(inc > 1.0) {
+                    inc = 1.0;
+                }
+                AD_LOG(print) << "val[" << index << "] = " << inc;
+                owner.uniforms.test[index] = inc;
                 return(false);
             });
-            
-            AD_LOG(info) << "###### got key";
         }
     };
 #undef INL

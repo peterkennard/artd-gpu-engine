@@ -64,6 +64,7 @@ struct SceneUniforms {
     viewMatrix: mat4x4f,
     vpMatrix: mat4x4f,
     eyePose:  mat4x4f,  // need inverse view ? or this ?
+    test: mat4x4f,
     time: f32,
     numLights: u32,
     pad1: f32,
@@ -141,8 +142,14 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
             case 0: { // directional
 
                 var shading = dot(light.pose[2],normal); // z axis of rotation - pre normalized
+                var wrap = scnUniforms.test[0].x;
+                wrap = wrap * 4.;
 
-                // var shading = dot(lightDirection1,normal); // z axis of rotation - pre normalized
+                //, 2.0); //* wrap; // (wrap,5.0);
+
+                shading += wrap;
+                shading *= 1.0/(1.+wrap);
+
 //                shading += .5;
 //                shading *= 1.0/1.5;
 
@@ -164,6 +171,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 //      and surface normal N reflect returns the reflection direction
 //      calculated as I - 2.0 * dot(N, I) * N.
 //
+                let sinCompare = scnUniforms.test[0].y;
+
 	            var incidence = dot(light.pose[2], normal);
                 if(incidence > 0.) {
                     var reflectDirection = reflect(light.pose[2], normal);
@@ -176,8 +185,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
                     // sun == 32 minutes ( 16 minutes radius )
                     // so if d > cos 16 minutes then size of sun
 
-                     // if(d > .99999)  // way bigger than sun or moon which cos(.0002909)
-                     if(d > cos( 50  * .0002909))
+
+                     let sc = cos(sinCompare * (3.14159f/2.f)); // if(d > sinCompare)  // way bigger than sun or moon which cos(.0002909)
+                     if(d > sc)
                      {
                         specPower = 1.0;
                     } // .2 * (pow(max(d, 0.0), 10.1 ) - 1060.0); // shininess);
