@@ -496,22 +496,22 @@ static void generateLatLongSphere(std::vector<float>& pointData,
         // segment group for current ring
 
         for (int seg = 0; seg <= numSegments; ++seg) {
-            
+
             float x0 = r0 * std::sin((float)seg * segmentDelta);
             float z0 = r0 * std::cos((float)seg * segmentDelta);
-            
+
             auto vIndex = mb.addVertex(Vec3f(x0,y0,z0));
             mb.setUV(glm::vec2((float) seg / (float) numRings, (float) ring / (float) numRings));
-            
+
             if(ring > 0) { // top
-                
+
                 mb.addTriangle(vIndex,
                                vIndex - numSegments,
                                vIndex - (numSegments + 1)
                                );
-                
+
                 if(ring < numRings)  { // bottom or second in quad
-                    
+
                     mb.addTriangle(vIndex,
                                    vIndex - (numSegments + 1),
                                    vIndex - 1
@@ -583,15 +583,107 @@ static void generateOctoSphere(std::vector<float>& pointData,
 
     buildIcosahedron(mb);
     mb.projectToUnitSphere(true);
-    
-    
 }
 
+// TODO: this is a tube generator - for a cone use atiny radius for the pointy end.
+
+static void generateTubeMesh(uint32_t numSegments, std::vector<float>& pointData,
+                                                std::vector<uint16_t>& indexData, float height, float radiusA, float radiusB)
+{
+    pointData.clear();
+    indexData.clear();
+    
+    int vCount = (numSegments) * 2;  // + 1 if we have a tip
+    int triCount = numSegments * 2;
+
+    const int floatsPerVert = (int)(sizeof(VertexData) / sizeof(float));
+
+    pointData.resize(vCount * floatsPerVert);
+    indexData.resize((triCount) * 3);
+
+    TriangleMeshBuilder mb(
+        reinterpret_cast<VertexData*>(pointData.data())
+        , reinterpret_cast<TriangleIndices*>(indexData.data())
+    );
+    
+	// https://www.khronos.org/opengl/wiki/Calculating_a_Surface_Normal
+    glm::vec3 vToTop = glm::vec3(-radiusA, height, 0);
+    glm::vec3 vToNext = glm::vec3(-radiusB,0.f,1.f);
+    glm::vec3 edgeNorm = glm::cross(vToTop,vToNext);
+    edgeNorm = glm::normalize(edgeNorm);
+
+    // rotation matrix a 3x3 for one segment delta rotation.
+    float segAngle = (2.0 * glm::pi<float>()) / numSegments;
+    glm::mat3 segRotation(glm::rotate(glm::mat4(1.f), segAngle, glm::vec3(0.f,1.f,0.f)));
+
+        // not a cone - this is really a cylinder with a tiny hole in top end and a large end
+    // with a cap - this is so we have good normals for s smooth cone
+
+    glm::vec3 sideNorm = edgeNorm;  // rotate normal around Y by segAngle
+    glm::vec3 endVert = glm::vec3(radiusA,height,0.);
+
+    for (uint32_t seg = 0; seg < numSegments; ++seg) {
+
+        mb.addVertex(endVert);
+        mb.setNormal(sideNorm);
+
+        if(seg < (numSegments-1)) {
+
+            sideNorm = segRotation * sideNorm;  // rotate normal around Y by segAngle
+            endVert = segRotation * endVert;  // rotate base position
 
 
+            mb.addTriangle(seg + 1,
+                           seg,
+                           seg + numSegments
+                           );
+
+            mb.addTriangle(seg + 1,
+                           seg + numSegments,
+                           seg + numSegments + 1
+                           );
+
+           
+         } else {
+            int nsEnd = numSegments+(numSegments-1);
+            mb.addTriangle(0,
+                         seg,
+                         nsEnd
+                         );
+
+            mb.addTriangle(0,
+                         nsEnd,
+                         numSegments
+                         );
+         }
+    }
+
+    sideNorm = edgeNorm;  // rotate normal around Y by segAngle
+    endVert = glm::vec3(radiusB,0.,0.);
+
+    for (uint32_t seg = 0; seg < numSegments; ++seg) {
+        
+        mb.addVertex(endVert);
+        mb.setNormal(sideNorm);
+        if(seg < (numSegments-1)) {
+            endVert = segRotation * endVert;  // rotate base position
+            sideNorm = segRotation * sideNorm;  // rotate normal around Y by segAngle
+        }
+    }
+}
+
+//static void generateConeMesh(uint32_t numSegments, std::vector<float>& pointData,
+//                                                std::vector<uint16_t>& indexData, float height, float radius)
+//{
+//    const float radiusA = height * 1e-8;
+//    generateTubeMesh(numSegments, pointData,
+//                                 indexData, height, radiusA, radius);
+//
+//}
+    
 
 static void generateConeMesh(uint32_t numSegments, std::vector<float>& pointData,
-                                                                                std::vector<uint16_t>& indexData, float height, float radius)
+                            std::vector<uint16_t>& indexData, float height, float radius)
 {
     //CLEVER?
 
@@ -712,6 +804,11 @@ CachedMeshLoader::loadGeometry(const fs::path& path, std::vector<float>& pointDa
     if(path == "cube") {
         generateSimpleCubeMesh( pointData,
                                 indexData, 1.0f);
+        return(true);
+    }
+    if(path == "tube") {
+        generateTubeMesh( 12, pointData,
+                          indexData, 1.0f, .5, .5);
         return(true);
     }
     if(path == "sphere") {

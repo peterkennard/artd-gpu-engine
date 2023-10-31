@@ -92,6 +92,9 @@ protected:
     class WindowHandler {
     public:
         GpuEngineImpl &owner_;
+        
+        float test[16];  // for testing input handling.
+        
         INL WindowHandler(GpuEngineImpl *owner)
             : owner_(*owner)
         {}
@@ -122,12 +125,11 @@ protected:
     TextureView depthTextureView = nullptr;
     Texture depthTexture = nullptr;
 
-    // global scene uniforms ?? )( I htink has model matrix in int too !!
     BindGroup bindGroup = nullptr;
 
+    // global scene uniforms camera and lights, test data things constant for a single frame of animation/render.
     SceneUniforms uniforms;
     
-    //
     ObjectPtr<LambdaEventQueue> inputQueue_;
     ObjectPtr<LambdaEventQueue> updateQueue_;
 

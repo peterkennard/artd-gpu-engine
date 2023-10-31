@@ -141,13 +141,14 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
         switch light.lightType {
             case 0: { // directional
 
-                var shading = dot(light.pose[2],normal); // z axis of rotation - pre normalized
-                var wrap = scnUniforms.test[0].x;
-                wrap = wrap * 4.;
+                var incidence = dot(light.pose[2],normal); // z axis of rotation, light direction - pre normalized
+
+
+                var wrap = scnUniforms.test[0].x * 4;
 
                 //, 2.0); //* wrap; // (wrap,5.0);
 
-                shading += wrap;
+                var shading = incidence + wrap;
                 shading *= 1.0/(1.+wrap);
 
 //                shading += .5;
@@ -170,11 +171,11 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 //      reflection dir = glsl::reflect(I, N) For a given incident vector vec
 //      and surface normal N reflect returns the reflection direction
 //      calculated as I - 2.0 * dot(N, I) * N.
-//
-                let sinCompare = scnUniforms.test[0].y;
 
-	            var incidence = dot(light.pose[2], normal);
-                if(incidence > 0.) {
+                let arg1 = scnUniforms.test[0].y;
+
+//                if(incidence > 0.) {
+                if(shading > 0.) {
                     var reflectDirection = reflect(light.pose[2], normal);
                     var toView = normalize(in.worldPos.xyz - scnUniforms.eyePose[3].xyz); // vector to eye from position.
 
@@ -185,15 +186,41 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
                     // sun == 32 minutes ( 16 minutes radius )
                     // so if d > cos 16 minutes then size of sun
 
+//                    specPower = max(pow(d, arg1 * 10.), 0.0);
 
-                     let sc = cos(sinCompare * (3.14159f/2.f)); // if(d > sinCompare)  // way bigger than sun or moon which cos(.0002909)
-                     if(d > sc)
-                     {
-                        specPower = 1.0;
-                    } // .2 * (pow(max(d, 0.0), 10.1 ) - 1060.0); // shininess);
+                    let sc = cos(arg1 * (3.14159f/2.f)); // if(d > sinCompare)  // way bigger than sun or moon which cos(.0002909)
+                    if(d > sc)
+                    {
+                        var dToSc = 0.0;
+                        if(sc > 0) {
+                            dToSc = 1.0 - (1.0 - d)/(1.0 - sc);
+                        }
+                        // lerp
+                        // return (start_value + (end_value - start_value) * pct);
+                        dToSc = (.3 + (1.0 - .3) * dToSc);
+                        if(dToSc > 0.0) {
+                            specPower = dToSc;
+                        }
+
+                        // (dToSc * 4); // (1.0 - (d - sc));
+                        // specPower = 1.0;
+                    } else {
+
+                        var dToSc = 0.0;
+                        if(sc > 0) {
+                            dToSc = (d/sc) * 50.0;
+                        }
+                        dToSc -= 49.999;
+
+                        specPower = dToSc * .3;
+
+                        // sc += .0000001;
+                        // specPower = 0.0; //1.0 - ( sc - d )/sc;
+
+                    }  // .2 * (pow(max(d, 0.0), 10.1 ) - 1060.0); // shininess);
                     if(specPower < 0.0) {
                         specPower = 0.;
-                    }
+                       }
                     specularMult = vec3f(specPower,specPower,specPower);
                 }
 

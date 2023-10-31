@@ -371,7 +371,8 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
     pipelineDesc.primitive.frontFace = FrontFace::CCW;  // right handed convention
     // cull (i.e. "hide") the faces pointing away from us (which is often
     // used for optimization).
-    pipelineDesc.primitive.cullMode = CullMode::Back;  // this is for the "opaque" pass
+    pipelineDesc.primitive.cullMode = // CullMode::None;
+    CullMode::Back;  // this is for the "opaque" pass
     
     // Fragment shader
     static FragmentState fragmentState;
@@ -789,8 +790,8 @@ GpuEngineImpl::renderFrame()  {
     {
         static float angle = 0; // bodge for test
         
-    //    Matrix4f lt = ringGroup_->getLocalTransform();
-       Matrix4f lt = lights_[0]->getLocalTransform();
+        Matrix4f lt = ringGroup_->getLocalTransform();
+    //   Matrix4f lt = lights_[0]->getLocalTransform();
 
         Matrix4f rot;
         angle += timing_.lastFrameDt() * .2;
@@ -804,8 +805,8 @@ GpuEngineImpl::renderFrame()  {
         lt[2] = rot[2];
 
 
-        lights_[0]->setLocalTransform(lt);
-    //    ringGroup_->setLocalTransform(lt);
+    //    lights_[0]->setLocalTransform(lt);
+        ringGroup_->setLocalTransform(lt);
     }
 
     {
