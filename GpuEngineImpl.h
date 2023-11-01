@@ -18,7 +18,7 @@
 #include "artd/GpuBufferManager.h"
 #include "artd/TimingContext.h"
 #include "artd/LambdaEventQueue.h"
-#include "./KeyInputManager.h"
+#include "./InputManager.h"
 #include "./FpsMonitor.h"
 
 #include <array>
@@ -89,23 +89,7 @@ protected:
     bool headless_ = true;
     GLFWwindow* window = nullptr;
 
-    class WindowHandler {
-    public:
-        GpuEngineImpl &owner_;
-        
-        float test[16];  // for testing input handling.
-        
-        INL WindowHandler(GpuEngineImpl *owner)
-            : owner_(*owner)
-        {}
-        INL GpuEngineImpl &owner() {
-            return(owner_);
-        }
-    };
-
-    WindowHandler windowHandler_;
     int initGlfwDisplay();
-
 
     uint32_t width_;
     uint32_t height_;
@@ -134,7 +118,8 @@ protected:
     ObjectPtr<LambdaEventQueue> updateQueue_;
 
     // resource management items
-    ObjectPtr<KeyInputManager>  keyboardManager_;
+    friend class InputManager;
+    ObjectPtr<InputManager>     inputManager_;
     ObjectPtr<ResourceManager>  resourceManager_;
     ObjectPtr<GpuBufferManager> bufferManager_;
     ObjectPtr<CachedMeshLoader> meshLoader_;
@@ -217,7 +202,6 @@ protected:
     std::vector<ObjectPtr<MaterialData>> materials_;
 
     GpuEngineImpl()
-        : windowHandler_(this)
     {
         bufferManager_ = GpuBufferManager::create(this);
         viewport_ = ObjectBase::make<Viewport>();

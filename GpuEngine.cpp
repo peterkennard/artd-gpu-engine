@@ -86,110 +86,9 @@ GpuEngineImpl::initGlfwDisplay() {
         AD_LOG(info) << "Could not open window!";
         return 1;
     }
-#define INL ARTD_ALWAYS_INLINE
-    class Whandler
-        : public WindowHandler
-    {
-    protected:
-        Whandler(GpuEngineImpl*owner) : WindowHandler(owner)
-        {}
-        INL static GpuEngineImpl &getOwner(GLFWwindow* window) {
-            return(reinterpret_cast<Whandler *>(glfwGetWindowUserPointer(window))->owner());
-        }
-        
-    public:
-        static void cursorEnterCallback(GLFWwindow* /*window*/, int entered)
-        {
-            if (entered)
-            {
-                // The cursor entered the content area of the window
-            }
-            else
-            {
-                // The cursor left the content area of the window
-            }
-        }
-        static void cursorPositionCallback(GLFWwindow* /*window*/, double xPos, double yPos)
-        {
-            AD_LOG(print) << "Mouse: " << glm::vec2(xPos, yPos);
-        }
-        static void mouseButtonCallback(GLFWwindow* /*window*/, int /*button*/, int /*action*/, int /*mods*/)
-        {
-//            if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS)
-//                popup_menu();
-        }
-        static void scrollCallback(GLFWwindow* /*window*/,
-                            double xoffset,
-                            double yoffset)
-        {
-            // mouse wheel or touch screen
-            AD_LOG(print) << "Wheel: " << glm::vec2(xoffset, yoffset);
-        }
-        static void keyCallback(GLFWwindow* window, int key, int /*scancode*/, int action, int mods) {
-            // max glfw key is  #define GLFW_KEY_LAST               GLFW_KEY_MENU = 348
-            // ALL GLFW MODIFIERS == 0X03F - A BYTE IS OK
-            // ACTION IS GLFW_PRESS, GLFW_RELEASE, OR GLFW_REPEAT ( 0 OR 1 OR 2)
-
-            getOwner(window).inputQueue_->postEvent(window, [key, action, mods](void *arg) {
-                
-                static int index = 0;
-                
-                if((action & 1) != 0) {
-                    return(false);
-                }
-                auto &owner = getOwner((GLFWwindow*)arg);
-                float inc = 0;
-                if(key >= GLFW_KEY_0 && key <= GLFW_KEY_9) {
-                    index = (key - GLFW_KEY_0);
-                } else {
-                    
-                    switch(key) {
-                        case GLFW_KEY_RIGHT:
-                            inc = .005;
-                            break;
-                        case GLFW_KEY_LEFT:
-                            inc = -.005;
-                            break;
-                        case GLFW_KEY_DOWN:
-                            inc = -.05;
-                            break;
-                        case GLFW_KEY_UP:
-                            inc = .05;
-                            break;
-                        default:
-                            AD_LOG(print) << "Processing key " << key << " mods " << std::hex << mods;
-                            return(false);
-                    }
-                }
-                inc += owner.uniforms.test[index];
-                if(inc < 0.0) {
-                    inc = 0.0;
-                } else if(inc > 1.0) {
-                    inc = 1.0;
-                }
-                AD_LOG(print) << "val[" << index << "] = " << inc;
-                owner.uniforms.test[index] = inc;
-
-                if(index == 0) {
-                    owner.lights_[0]->setAreaWrap(inc);
-                }
-
-                return(false);
-            });
-        }
-    };
-#undef INL
-
-    glfwSetWindowUserPointer(window, reinterpret_cast<void *>(&windowHandler_));
+    glfwSetWindowUserPointer(window, reinterpret_cast<void *>(inputManager_.get()));
     surface = glfwGetWGPUSurface(instance, window);
-    glfwSetCursorPosCallback(window, &Whandler::cursorPositionCallback);
-    glfwSetMouseButtonCallback(window, &Whandler::mouseButtonCallback);
-    glfwSetCursorEnterCallback(window, &Whandler::cursorEnterCallback);
-    glfwSetScrollCallback(window, &Whandler::scrollCallback);
-    glfwSetKeyCallback(window, &Whandler::keyCallback);
-    // glfwSetCharCallback(GLFWwindow* handle, GLFWcharfun cbfun)
-    // glfwSetCharModsCallback(GLFWwindow* handle, GLFWcharmodsfun cbfun)
-    
+    inputManager_->setGlfwWindowCallbacks(window);
     return(0);
 }
 
@@ -231,7 +130,7 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
         return 1;
     }
 
-    keyboardManager_ = ObjectBase::make<KeyInputManager>();
+    inputManager_ = ObjectBase::make<InputManager>(this);
     
     if(headless_) {
         surface = nullptr;  // done in constructor
@@ -705,9 +604,10 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
         // layout some objects in a ring around the ringGroup_ node
         // assign one of the test materials to it.
         uint32_t materialId = 0;
-        for(int i = 0; i < 12; ++i)  {
+        for(uint32_t i = 0; i < 12; ++i)  {
         
             MeshNode *node = (MeshNode *)ringGroup_->addChild(ObjectBase::make<MeshNode>());
+            node->setId(i + 10);
 
             lt = glm::mat4(1.0);
             lt[3] = glm::vec4(trans,1.0);
@@ -1039,6 +939,7 @@ GpuEngineImpl::renderFrame()  {
     queue.submit(command);
 
     presentImage(nextTexture);
+
 
 #ifdef WEBGPU_BACKEND_DAWN
         // Check for pending error callbacks
