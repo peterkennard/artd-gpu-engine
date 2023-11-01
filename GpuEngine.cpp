@@ -98,6 +98,33 @@ GpuEngineImpl::initGlfwDisplay() {
         }
         
     public:
+        static void cursorEnterCallback(GLFWwindow* /*window*/, int entered)
+        {
+            if (entered)
+            {
+                // The cursor entered the content area of the window
+            }
+            else
+            {
+                // The cursor left the content area of the window
+            }
+        }
+        static void cursorPositionCallback(GLFWwindow* /*window*/, double xPos, double yPos)
+        {
+            AD_LOG(print) << "Mouse: " << glm::vec2(xPos, yPos);
+        }
+        static void mouseButtonCallback(GLFWwindow* /*window*/, int /*button*/, int /*action*/, int /*mods*/)
+        {
+//            if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS)
+//                popup_menu();
+        }
+        static void scrollCallback(GLFWwindow* /*window*/,
+                            double xoffset,
+                            double yoffset)
+        {
+            // mouse wheel or touch screen
+            AD_LOG(print) << "Wheel: " << glm::vec2(xoffset, yoffset);
+        }
         static void keyCallback(GLFWwindow* window, int key, int /*scancode*/, int action, int mods) {
             // max glfw key is  #define GLFW_KEY_LAST               GLFW_KEY_MENU = 348
             // ALL GLFW MODIFIERS == 0X03F - A BYTE IS OK
@@ -142,6 +169,11 @@ GpuEngineImpl::initGlfwDisplay() {
                 }
                 AD_LOG(print) << "val[" << index << "] = " << inc;
                 owner.uniforms.test[index] = inc;
+
+                if(index == 0) {
+                    owner.lights_[0]->setAreaWrap(inc);
+                }
+
                 return(false);
             });
         }
@@ -150,6 +182,10 @@ GpuEngineImpl::initGlfwDisplay() {
 
     glfwSetWindowUserPointer(window, reinterpret_cast<void *>(&windowHandler_));
     surface = glfwGetWGPUSurface(instance, window);
+    glfwSetCursorPosCallback(window, &Whandler::cursorPositionCallback);
+    glfwSetMouseButtonCallback(window, &Whandler::mouseButtonCallback);
+    glfwSetCursorEnterCallback(window, &Whandler::cursorEnterCallback);
+    glfwSetScrollCallback(window, &Whandler::scrollCallback);
     glfwSetKeyCallback(window, &Whandler::keyCallback);
     // glfwSetCharCallback(GLFWwindow* handle, GLFWcharfun cbfun)
     // glfwSetCharModsCallback(GLFWwindow* handle, GLFWcharmodsfun cbfun)
@@ -790,8 +826,8 @@ GpuEngineImpl::renderFrame()  {
     {
         static float angle = 0; // bodge for test
         
-        Matrix4f lt = ringGroup_->getLocalTransform();
-    //   Matrix4f lt = lights_[0]->getLocalTransform();
+        // Matrix4f lt = ringGroup_->getLocalTransform();
+        Matrix4f lt = lights_[0]->getLocalTransform();
 
         Matrix4f rot;
         angle += timing_.lastFrameDt() * .2;
@@ -805,8 +841,8 @@ GpuEngineImpl::renderFrame()  {
         lt[2] = rot[2];
 
 
-    //    lights_[0]->setLocalTransform(lt);
-        ringGroup_->setLocalTransform(lt);
+        lights_[0]->setLocalTransform(lt);
+    //    ringGroup_->setLocalTransform(lt);
     }
 
     {
@@ -1138,20 +1174,24 @@ struct Aligned
 static void testit() {
     AD_LOG(info) << "\ntsize " << sizeof(Fooniforms)
     << "\n align " << (sizeof(Aligned) % 16);
-    
-    
-    
 }
 
 
 ARTD_END
+
+#include "artd/TypedPropertyMap.h"
+
 
 extern "C" {
 
     typedef artd::GpuEngineImpl Engine;
 
     int runGpuTest(int, char **) {
-        
+
+
+        artd::TypedPropertyMap::test();
+
+
         bool headless = false;
     
         artd::testit();

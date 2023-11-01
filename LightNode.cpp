@@ -49,6 +49,7 @@ LightNode::LightNode() {
     data_.pose_ = glm::mat3(1.f);
 //    data_.position_ = glm::vec3(0,0,0);
     data_.type_ = Type::directional;
+    data_.vec0_ = glm::vec4(0);
 }
 void
 LightNode::setDirection(const glm::vec3 &direction) {
@@ -57,5 +58,14 @@ LightNode::setDirection(const glm::vec3 &direction) {
     lmat[3] = getLocalTransform()[3];  // preserve position !
     setLocalTransform(lmat);
 }
+void
+LightNode::setAreaWrap(float v)
+{
+    if(v < 0.) v = 0.;
+    else if(v > 1.0)
+    v = 1.0;
+    data_.vec0_.x = v * 4.f;  // note this is 0 to 4 passed into shader !
+}
+
 
 ARTD_END

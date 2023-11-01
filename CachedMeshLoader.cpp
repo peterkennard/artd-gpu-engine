@@ -585,7 +585,8 @@ static void generateOctoSphere(std::vector<float>& pointData,
     mb.projectToUnitSphere(true);
 }
 
-// TODO: this is a tube generator - for a cone use atiny radius for the pointy end.
+// This is a tube generator - for a cone use atiny radius for the pointy end.
+// TODO: enable optionally adding end caps.
 
 static void generateTubeMesh(uint32_t numSegments, std::vector<float>& pointData,
                                                 std::vector<uint16_t>& indexData, float height, float radiusA, float radiusB)
@@ -593,7 +594,7 @@ static void generateTubeMesh(uint32_t numSegments, std::vector<float>& pointData
     pointData.clear();
     indexData.clear();
     
-    int vCount = (numSegments) * 2;  // + 1 if we have a tip
+    int vCount = numSegments * 2;  // + 1 if we have a cone tip
     int triCount = numSegments * 2;
 
     const int floatsPerVert = (int)(sizeof(VertexData) / sizeof(float));
@@ -615,9 +616,6 @@ static void generateTubeMesh(uint32_t numSegments, std::vector<float>& pointData
     // rotation matrix a 3x3 for one segment delta rotation.
     float segAngle = (2.0 * glm::pi<float>()) / numSegments;
     glm::mat3 segRotation(glm::rotate(glm::mat4(1.f), segAngle, glm::vec3(0.f,1.f,0.f)));
-
-        // not a cone - this is really a cylinder with a tiny hole in top end and a large end
-    // with a cap - this is so we have good normals for s smooth cone
 
     glm::vec3 sideNorm = edgeNorm;  // rotate normal around Y by segAngle
     glm::vec3 endVert = glm::vec3(radiusA,height,0.);
@@ -672,15 +670,22 @@ static void generateTubeMesh(uint32_t numSegments, std::vector<float>& pointData
     }
 }
 
-//static void generateConeMesh(uint32_t numSegments, std::vector<float>& pointData,
-//                                                std::vector<uint16_t>& indexData, float height, float radius)
-//{
-//    const float radiusA = height * 1e-8;
-//    generateTubeMesh(numSegments, pointData,
-//                                 indexData, height, radiusA, radius);
-//
-//}
-    
+
+#if 1 // use tube as cone
+
+static void generateConeMesh(uint32_t numSegments, std::vector<float>& pointData,
+                                                std::vector<uint16_t>& indexData, float height, float radius)
+{
+    // not a cone - this is really a tube with a tiny hole in one end and a large end
+    // without a bottom cap - this is to so we have decent normals interpolation for s smooth cone
+
+    const float radiusA = height * 1e-8;
+    generateTubeMesh(numSegments, pointData,
+                                 indexData, height, radiusA, radius);
+
+}
+
+#else
 
 static void generateConeMesh(uint32_t numSegments, std::vector<float>& pointData,
                             std::vector<uint16_t>& indexData, float height, float radius)
@@ -788,6 +793,7 @@ static void generateConeMesh(uint32_t numSegments, std::vector<float>& pointData
 	}
 }
 
+#endif
 
 } // end anonymous namespace
 
@@ -798,7 +804,7 @@ CachedMeshLoader::loadGeometry(const fs::path& path, std::vector<float>& pointDa
 
     if(path == "cone") {
         generateConeMesh( 12, pointData,
-                          indexData, 1.0f, .5f);
+                          indexData, 1.0f, .4f);
         return(true);
     }
     if(path == "cube") {

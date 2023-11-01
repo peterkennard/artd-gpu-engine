@@ -16,6 +16,7 @@ public:
     glm::vec3 diffuse_; // have the "alpha" or "w" be a "blacklight" component for "flourecense" ??
     uint32_t type_; // align 4  - consumes 4
     // now at byte 80
+    glm::vec4 vec0_;  // used for different things dependingon the type.
 
 //    glm::vec3 ambient_;  // should only an ambient light have this value or should only be diffuse as ambient would just be specular everywhere ?
 //    glm::vec3 specular_;
@@ -78,6 +79,7 @@ public:
     INL void setDiffuse(const Color3f &color) {
         data_.diffuse_ = glm::vec4(color,0);
     }
+    void setAreaWrap(float v);
 };
 
 #undef INL

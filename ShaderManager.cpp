@@ -54,6 +54,7 @@ struct LightData {
     position: vec3f,
     diffuse: vec3f,
     lightType: u32,
+    vec0: vec4f,  // multi-use depending on type
 };
 
 /**
@@ -143,16 +144,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 
                 var incidence = dot(light.pose[2],normal); // z axis of rotation, light direction - pre normalized
 
-
-                var wrap = scnUniforms.test[0].x * 4;
-
-                //, 2.0); //* wrap; // (wrap,5.0);
-
+                let wrap = light.vec0.x;
                 var shading = incidence + wrap;
                 shading *= 1.0/(1.+wrap);
-
-//                shading += .5;
-//                shading *= 1.0/1.5;
 
 //  https://en.wikipedia.org/wiki/Blinn%E2%80%93Phong_reflection_model
 //                //Calculate the half vector between the light vector and the view vector.
@@ -174,53 +168,59 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 
                 let arg1 = scnUniforms.test[0].y;
 
-//                if(incidence > 0.) {
-                if(shading > 0.) {
+                if(incidence > 0.) {
+//                if(shading > 0.) {
                     var reflectDirection = reflect(light.pose[2], normal);
                     var toView = normalize(in.worldPos.xyz - scnUniforms.eyePose[3].xyz); // vector to eye from position.
-
-                    var d = dot(reflectDirection, toView);
+                    // TODO: this is not really right - phong like - but acceptable for now
+                    // TODO: really need to have a bespoke curve for different materials and or specularity map.
+                    var d = dot(reflectDirection, toView) + (wrap * .002);
                     var specPower = 0.0;
+
+                    if(d > 0.0 && arg1 > 0.0) { // TODO: material specularity
+                        specPower = max(pow(d, 1.0 + (arg1+.04) * 1000.), 0.0) * (1.0 - (.4*incidence));
+                        if(specPower > 1.0) {
+                            specPower = 1.0;
+                        }
+                    }
 
                     // 1 minute × π/(60 × 180) = 0.0002909 radians
                     // sun == 32 minutes ( 16 minutes radius )
                     // so if d > cos 16 minutes then size of sun
+//                    let sc = cos(arg1 * (3.14159f/2.f)); // if(d > sinCompare)  // way bigger than sun or moon which cos(.0002909)
+//                    if(d > sc)
+//                    {
+//                        var dToSc = 0.0;
+//                        if(sc > 0) {
+//                            dToSc = 1.0 - (1.0 - d)/(1.0 - sc);
+//                        }
+//                        // lerp
+//                        // return (start_value + (end_value - start_value) * pct);
+//                        dToSc = (.3 + (1.0 - .3) * dToSc);
+//                        if(dToSc > 0.0) {
+//                            specPower = dToSc;
+//                        }
+//
+//                        // (dToSc * 4); // (1.0 - (d - sc));
+//                        // specPower = 1.0;
+//                    } else {
+//
+//                        var dToSc = 0.0;
+//                        if(sc > 0) {
+//                            dToSc = (d/sc) * 50.0;
+//                        }
+//                        dToSc -= 49.999;
+//
+//                        specPower = dToSc * .3;
+//
+//                        // sc += .0000001;
+//                        // specPower = 0.0; //1.0 - ( sc - d )/sc;
+//
+//                    }  // .2 * (pow(max(d, 0.0), 10.1 ) - 1060.0); // shininess);
 
-//                    specPower = max(pow(d, arg1 * 10.), 0.0);
-
-                    let sc = cos(arg1 * (3.14159f/2.f)); // if(d > sinCompare)  // way bigger than sun or moon which cos(.0002909)
-                    if(d > sc)
-                    {
-                        var dToSc = 0.0;
-                        if(sc > 0) {
-                            dToSc = 1.0 - (1.0 - d)/(1.0 - sc);
-                        }
-                        // lerp
-                        // return (start_value + (end_value - start_value) * pct);
-                        dToSc = (.3 + (1.0 - .3) * dToSc);
-                        if(dToSc > 0.0) {
-                            specPower = dToSc;
-                        }
-
-                        // (dToSc * 4); // (1.0 - (d - sc));
-                        // specPower = 1.0;
-                    } else {
-
-                        var dToSc = 0.0;
-                        if(sc > 0) {
-                            dToSc = (d/sc) * 50.0;
-                        }
-                        dToSc -= 49.999;
-
-                        specPower = dToSc * .3;
-
-                        // sc += .0000001;
-                        // specPower = 0.0; //1.0 - ( sc - d )/sc;
-
-                    }  // .2 * (pow(max(d, 0.0), 10.1 ) - 1060.0); // shininess);
                     if(specPower < 0.0) {
                         specPower = 0.;
-                       }
+                    }
                     specularMult = vec3f(specPower,specPower,specPower);
                 }
 
