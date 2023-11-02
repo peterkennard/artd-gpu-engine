@@ -1,4 +1,5 @@
-R"(
+R"(  // this here so can be included in C++ as a string - reader needs to strip out
+
 struct VertexInput {
 	@builtin(instance_index) instanceIx: u32,
 	@location(0) position: vec3f,
@@ -220,4 +221,4 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 	let corrected_color = color; // pow(color, vec3f(2.2));
     return vec4f(corrected_color,1.0); // corrected_color, scnUniforms.color.a);
 }
-)";
+// )";

@@ -44,7 +44,7 @@ ShaderModule
 ShaderManager::loadShaderModule(const fs::path& path) {
 
     const char *shaderCode = "";
-    std::string shaderSource(" ");
+    std::string shaderSource("");
 
     if( path == "testShader1.wgsl") {
         shaderCode = test1Shader;
