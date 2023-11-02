@@ -30,6 +30,7 @@
 ARTD_BEGIN
 
 class MeshNode;
+class PickerPass;
 
 #define INL ARTD_ALWAYS_INLINE
 
@@ -116,6 +117,8 @@ protected:
     
     ObjectPtr<LambdaEventQueue> inputQueue_;
     ObjectPtr<LambdaEventQueue> updateQueue_;
+   friend class PickerPass;
+   ObjectPtr<PickerPass>        pickerPass_;
 
     // resource management items
     friend class InputManager;
@@ -201,22 +204,8 @@ protected:
     // TODO: Integrate into ResourceManager, or create a material manager to handle dynamism creating/deleting
     std::vector<ObjectPtr<MaterialData>> materials_;
 
-    GpuEngineImpl()
-    {
-        bufferManager_ = GpuBufferManager::create(this);
-        viewport_ = ObjectBase::make<Viewport>();
-        camNode_ = ObjectBase::make<CameraNode>();
-        auto cam = ObjectBase::make<Camera>();
-        camNode_->setCamera(cam);
-        meshLoader_ = ObjectBase::make<CachedMeshLoader>();
-        cam->setViewport(viewport_);
-        // TODO: we need a scene
-        ringGroup_ = ObjectBase::make<TransformNode>();
-        std::memset(&uniforms,0,sizeof(uniforms));
-    };
-    ~GpuEngineImpl() {
-        releaseResources();
-    }
+    GpuEngineImpl();
+    ~GpuEngineImpl();
 
     /**
      * A structure that describes the data layout in the vertex buffer

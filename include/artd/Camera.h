@@ -79,7 +79,7 @@ public:
     static void viewToPose(const glm::mat4 &view, glm::mat4 &poseOut);
 
     glm::vec3 unProject(float mouseX, float mouseY, float mouseZ);
-
+    // get ray from eyepoint through pixel on the viewport
     Ray3f getPixelRay(int px, int py);
 };
 

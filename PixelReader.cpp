@@ -9,33 +9,33 @@ std::filesystem::path resolvePath(int frame) {
 }
 
 PixelReader::PixelReader(wgpu::Device device, uint32_t width, uint32_t height)
-	: m_device(device)
-	, m_width(width)
-	, m_height(height)
+	: device_(device)
+	, width_(width)
+	, height_(height)
 {
-	using namespace wgpu;
+    using namespace wgpu;
 
-	// Create a texture onto which we blit the texture view
-	TextureDescriptor renderTextureDesc;
-	renderTextureDesc.dimension = TextureDimension::_2D;
-	renderTextureDesc.format = TextureFormat::RGBA8Unorm;
-	renderTextureDesc.mipLevelCount = 1;
-	renderTextureDesc.sampleCount = 1;
-	renderTextureDesc.size = { width, height, 1 };
-	renderTextureDesc.usage = TextureUsage::RenderAttachment | TextureUsage::CopySrc;
-	renderTextureDesc.viewFormatCount = 0;
-	renderTextureDesc.viewFormats = nullptr;
-	Texture renderTexture = device.createTexture(renderTextureDesc);
+    // Create a texture onto which we blit the texture view
+    TextureDescriptor renderTextureDesc;
+    renderTextureDesc.dimension = TextureDimension::_2D;
+    renderTextureDesc.format = TextureFormat::RGBA8Unorm;
+    renderTextureDesc.mipLevelCount = 1;
+    renderTextureDesc.sampleCount = 1;
+    renderTextureDesc.size = { width, height, 1 };
+    renderTextureDesc.usage = TextureUsage::RenderAttachment | TextureUsage::CopySrc;
+    renderTextureDesc.viewFormatCount = 0;
+    renderTextureDesc.viewFormats = nullptr;
+    Texture renderTexture = device.createTexture(renderTextureDesc);
 
-	TextureViewDescriptor renderTextureViewDesc;
-	renderTextureViewDesc.aspect = TextureAspect::All;
-	renderTextureViewDesc.baseArrayLayer = 0;
-	renderTextureViewDesc.arrayLayerCount = 1;
-	renderTextureViewDesc.baseMipLevel = 0;
-	renderTextureViewDesc.mipLevelCount = 1;
-	renderTextureViewDesc.dimension = TextureViewDimension::_2D;
-	renderTextureViewDesc.format = renderTextureDesc.format;
-	TextureView renderTextureView = renderTexture.createView(renderTextureViewDesc);
+    TextureViewDescriptor renderTextureViewDesc;
+    renderTextureViewDesc.aspect = TextureAspect::All;
+    renderTextureViewDesc.baseArrayLayer = 0;
+    renderTextureViewDesc.arrayLayerCount = 1;
+    renderTextureViewDesc.baseMipLevel = 0;
+    renderTextureViewDesc.mipLevelCount = 1;
+    renderTextureViewDesc.dimension = TextureViewDimension::_2D;
+    renderTextureViewDesc.format = renderTextureDesc.format;
+    TextureView renderTextureView = renderTexture.createView(renderTextureViewDesc);
 
 	// Create a buffer to get pixels
 	BufferDescriptor pixelBufferDesc = Default;
@@ -131,26 +131,26 @@ fn fs_main(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f32> {
 
 	RenderPipeline pipeline = device.createRenderPipeline(pipelineDesc);
 
-	m_bindGroupLayout = bindGroupLayout;
-	m_pipeline = pipeline;
-	m_renderTexture = renderTexture;
-	m_renderTextureDesc = renderTextureDesc;
-	m_renderTextureView = renderTextureView;
-	m_pixelBuffer = pixelBuffer;
-	m_pixelBufferDesc = pixelBufferDesc;
+	bindGroupLayout_ = bindGroupLayout;
+	pipeline_ = pipeline;
+	renderTexture_ = renderTexture;
+	renderTextureDesc_ = renderTextureDesc;
+	renderTextureView_ = renderTextureView;
+	pixelBuffer_ = pixelBuffer;
+	pixelBufferDesc_ = pixelBufferDesc;
 }
 
 bool
 PixelReader::lockPixels(uint32_t **pPixelsOut, wgpu::Texture texture) const {
 	using namespace wgpu;
-	auto device = m_device;
-	auto width = m_width;
-	auto height = m_height;
+	auto device = device_;
+	auto width = width_;
+	auto height = height_;
 //	auto bindGroupLayout = m_bindGroupLayout;
 //	auto pipeline = m_pipeline;
 	//auto renderTextureDesc = m_renderTextureDesc;
-	auto pixelBuffer = m_pixelBuffer;
-	auto pixelBufferDesc = m_pixelBufferDesc;
+	auto pixelBuffer = pixelBuffer_;
+	auto pixelBufferDesc = pixelBufferDesc_;
 
 	// Start encoding the commands
 	CommandEncoder encoder = device.createCommandEncoder(Default);
@@ -210,7 +210,7 @@ PixelReader::lockPixels(uint32_t **pPixelsOut, wgpu::Texture texture) const {
 
 void
 PixelReader::unlockPixels() {
-    m_pixelBuffer.unmap();
+    pixelBuffer_.unmap();
 }
 
 ARTD_END

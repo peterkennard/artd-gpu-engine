@@ -16,17 +16,17 @@ public:
     void unlockPixels();
 
 private:
-	wgpu::Device m_device;
-	uint32_t m_width;
-	uint32_t m_height;
-	wgpu::BindGroupLayout m_bindGroupLayout = nullptr;
-	wgpu::RenderPassDescriptor m_renderPassDesc;
-	wgpu::RenderPipeline m_pipeline = nullptr;
-	wgpu::Texture m_renderTexture = nullptr;
-	wgpu::TextureDescriptor m_renderTextureDesc;
-	wgpu::TextureView m_renderTextureView = nullptr;
-	wgpu::Buffer m_pixelBuffer = nullptr;
-	wgpu::BufferDescriptor m_pixelBufferDesc;
+	wgpu::Device device_;
+	uint32_t width_;
+	uint32_t height_;
+	wgpu::BindGroupLayout bindGroupLayout_ = nullptr;
+	wgpu::RenderPassDescriptor renderPassDesc_;
+	wgpu::RenderPipeline pipeline_ = nullptr;
+	wgpu::Texture renderTexture_ = nullptr;
+	wgpu::TextureDescriptor renderTextureDesc_;
+	wgpu::TextureView renderTextureView_ = nullptr;
+	wgpu::Buffer pixelBuffer_ = nullptr;
+	wgpu::BufferDescriptor pixelBufferDesc_;
 };
 
 ARTD_END

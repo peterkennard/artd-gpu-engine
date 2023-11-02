@@ -53,6 +53,7 @@
 #include "DrawableMesh.h"
 #include "artd/pointer_math.h"
 #include "./FpsMonitor.h"
+#include "./PickerPass.h"
 
 ARTD_BEGIN
 
@@ -91,6 +92,51 @@ GpuEngineImpl::initGlfwDisplay() {
     inputManager_->setGlfwWindowCallbacks(window);
     return(0);
 }
+
+GpuEngineImpl::GpuEngineImpl()
+{
+    bufferManager_ = GpuBufferManager::create(this);
+    viewport_ = ObjectBase::make<Viewport>();
+    camNode_ = ObjectBase::make<CameraNode>();
+    auto cam = ObjectBase::make<Camera>();
+    camNode_->setCamera(cam);
+    meshLoader_ = ObjectBase::make<CachedMeshLoader>();
+    cam->setViewport(viewport_);
+    // TODO: we need a scene
+    ringGroup_ = ObjectBase::make<TransformNode>();
+    std::memset(&uniforms,0,sizeof(uniforms));
+}
+
+GpuEngineImpl::~GpuEngineImpl()
+{
+    releaseResources();
+}
+void
+GpuEngineImpl::releaseResources() {
+    if(instance) {
+
+        if(depthTextureView) {
+            depthTextureView.release();
+        }
+        if(depthTexture) {
+            depthTexture.destroy();
+            depthTexture.release();
+        }
+
+        meshLoader_ = nullptr;
+        bufferManager_->shutdown();
+
+        device.release();
+        adapter.release();
+        instance.release();
+        instance = nullptr;
+    }
+    if(headless_) {
+        glfwDestroyWindow(window);
+        glfwTerminate();
+    }
+}
+
 
 int GpuEngineImpl::init(bool headless, int width, int height) {
     
@@ -252,9 +298,10 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
     
     // ****** shader module part
     resourceManager_ = ResourceManager::create();
+    pickerPass_ = ObjectBase::make<PickerPass>(this);
     
     AD_LOG(info) << "Creating shader module...";
-    shaderModule = shaderManager_->loadShaderModule("pyramid056.wgsl");
+    shaderModule = shaderManager_->loadShaderModule("testShader1.wgsl");
     AD_LOG(info)  << "Shader module: " << shaderModule;
     
     AD_LOG(info) << "Creating render pipeline...";
@@ -948,31 +995,6 @@ GpuEngineImpl::renderFrame()  {
     return(0);
 }
 
-void
-GpuEngineImpl::releaseResources() {
-    if(instance) {
-
-        if(depthTextureView) {
-            depthTextureView.release();
-        }
-        if(depthTexture) {
-            depthTexture.destroy();
-            depthTexture.release();
-        }
-
-        meshLoader_ = nullptr;
-        bufferManager_->shutdown();
-
-        device.release();
-        adapter.release();
-        instance.release();
-        instance = nullptr;
-    }
-    if(headless_) {
-        glfwDestroyWindow(window);
-        glfwTerminate();
-    }
-}
 
 ARTD_END
 
