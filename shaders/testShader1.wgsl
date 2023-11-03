@@ -4,7 +4,7 @@ struct VertexInput {
 	@builtin(instance_index) instanceIx: u32,
 	@location(0) position: vec3f,
 	@location(1) normal: vec3f, // new attribute
-	@location(2) color: vec3f,
+	@location(2) uv: vec2f,
 };
 
 // SEE: https://www.w3.org/TR/WGSL/#alignment-and-size
@@ -44,14 +44,14 @@ struct InstanceData {
 struct MaterialData {
     diffuse: vec3f,
     unused_: f32,  // id ? we need transparency ??
-    specular: vec3f
+    specular: vec3f,
 };
 
 struct VertexOutput {
     @builtin(position) position: vec4f,
     @location(0) worldPos: vec4f,
     @location(1) normal: vec3f,
-    @location(2) texUV:  vec2f,  // TBD unused now
+    @location(2) uv:  vec2f,  // TBD unused now
     @location(3) @interpolate(flat) materialIx: u32
 };
 
@@ -62,6 +62,8 @@ struct VertexOutput {
 // TODO: not sure if this is right for the array guessing
 @group(0) @binding(1) var<storage> instanceArray : array<InstanceData>;
 @group(0) @binding(2) var<storage> materialArray : array<MaterialData>;
+
+// @group(1) @binding(0) var tex0: texture_2d<f32>;
 
 // TODO: from a stack overflow question
 // let grid = &voxel_volume.indirection_pool[pool_index];
@@ -77,6 +79,7 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 
     out.worldPos = mMat * vec4f(in.position, 1.0);
     out.position = scnUniforms.vpMatrix * out.worldPos;
+	out.uv = in.uv;
 
 	// Forward the normal
 	// TODO: pass in a normal "pose" matrix? in instance data ?
@@ -92,6 +95,13 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 	let normal = normalize(in.normal); // the interpolator doesn't keep it normalized !!! ie: rotate it !
 
     let material = materialArray[in.materialIx]; // indirection or by value ? or is it a reference ?
+
+	// We remap UV coords to actual texel coordinates
+//	let texelCoords = vec2i(in.uv * vec2f(textureDimensions(tex0)));
+
+	// And we fetch a texel from the texture
+//	let color = textureLoad(tex0, texelCoords, 0).rgb;
+
 
     var diffuseMult = vec3f(0,0,0);
     var specularMult = vec3f(0,0,0);

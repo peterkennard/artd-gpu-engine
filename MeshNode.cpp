@@ -8,7 +8,7 @@ MeshNode::~MeshNode() {
 
 }
 void
-MeshNode::setMaterial(ObjectPtr<MaterialData> newMat) {
+MeshNode::setMaterial(ObjectPtr<Material> newMat) {
     material_ = newMat;
 }
 

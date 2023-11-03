@@ -54,6 +54,7 @@
 #include "artd/pointer_math.h"
 #include "./FpsMonitor.h"
 #include "./PickerPass.h"
+#include "./GpuErrorHandler.h"
 
 ARTD_BEGIN
 
@@ -68,6 +69,11 @@ GpuEngine::~GpuEngine() {
 
 };
 
+//static void doNutin(void *addr) {
+//    if(!addr) {
+//        AD_LOG(print) << "null";
+//    }
+//}
 
 namespace fs = std::filesystem;
 
@@ -216,7 +222,9 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
     requiredLimits.limits.maxUniformBuffersPerShaderStage = 8; // 12 is max here
     // Update max uniform buffer size:
     requiredLimits.limits.maxUniformBufferBindingSize = 16 * 4 * sizeof(float) * 2;  // 2x added enough ?
-    
+
+    requiredLimits.limits.maxSamplersPerShaderStage = 1;
+
     // so is this a definition of the maximum renderer viewport size ?
     requiredLimits.limits.maxTextureDimension1D = height_;
     requiredLimits.limits.maxTextureDimension2D = width_;
@@ -232,10 +240,7 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
     AD_LOG(info) << "Got device: " << device;
         
     // Add an error callback for more debug info
-    errorCallback_ = device.setUncapturedErrorCallback([](ErrorType type, char const* message) {
-        AD_LOG(error) << "Device error: type " << type << "(" << (message ? message : "" ) << ")";
-        return;
-    });
+    errorCallback_ = GpuErrorHandler::initErrorCallback(device);
 
     deviceLostCallback_ = device.setDeviceLostCallback([](DeviceLostReason /*reason*/, char const * /*message*/) {
     });
@@ -321,7 +326,7 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
     vertexAttribs[1].format = VertexFormat::Float32x3;
     vertexAttribs[1].offset = offsetof(VertexAttributes, normal);
     
-    // Color attribute
+    // UV attribute
     vertexAttribs[2].shaderLocation = 2;
     vertexAttribs[2].format = VertexFormat::Float32x2;
     vertexAttribs[2].offset = offsetof(VertexAttributes, uv);
@@ -425,7 +430,7 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
         bindingLayouts[2].binding = 2;
         bindingLayouts[2].visibility = ShaderStage::Vertex | ShaderStage::Fragment;
         bindingLayouts[2].buffer.type = BufferBindingType::ReadOnlyStorage;
-        bindingLayouts[2].buffer.minBindingSize = sizeof(MaterialData);
+        bindingLayouts[2].buffer.minBindingSize = sizeof(MaterialShaderData);
     }
     
     // Create a bind group layout
@@ -434,23 +439,79 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
     bindGroupLayoutDesc.entries =  bindingLayouts;
     BindGroupLayout bindGroupLayout = device.createBindGroupLayout(bindGroupLayoutDesc);
 
+// create bind group layout for texture !
 #ifdef WEBGPU_BACKEND_DAWN
         // Check for pending error callbacks
         device.tick();
 #endif
 
     
+	// The texture binding
+    
+    BindGroupLayoutEntry bindingLayouts2[1];
+	BindGroupLayoutEntry& textureBindingLayout = bindingLayouts2[0];
+    textureBindingLayout = Default;
+	textureBindingLayout.binding = 0;
+	textureBindingLayout.visibility = ShaderStage::Fragment;
+	textureBindingLayout.texture.sampleType = TextureSampleType::Float;
+	textureBindingLayout.texture.viewDimension = TextureViewDimension::_2D;
+
+    BindGroupLayoutDescriptor bindGroupLayoutDesc1{};
+    bindGroupLayoutDesc1.entryCount = 1; // todo take from data struct
+    bindGroupLayoutDesc1.entries =  bindingLayouts2;
+    BindGroupLayout textureBindGroupLayout = device.createBindGroupLayout(bindGroupLayoutDesc1);
+        
+#ifdef WEBGPU_BACKEND_DAWN
+        // Check for pending error callbacks
+        device.tick();
+#endif
+
+    // a sampler binding
+
+    {
+        // Create a sampler
+//        SamplerDescriptor samplerDesc;
+//        samplerDesc.addressModeU = AddressMode::ClampToEdge;
+//        samplerDesc.addressModeV = AddressMode::ClampToEdge;
+//        samplerDesc.addressModeW = AddressMode::ClampToEdge;
+//        samplerDesc.magFilter = FilterMode::Linear;
+//        samplerDesc.minFilter = FilterMode::Linear;
+//        samplerDesc.mipmapFilter = MipmapFilterMode::Linear;
+//        samplerDesc.lodMinClamp = 0.0f;
+//        samplerDesc.lodMaxClamp = 1.0f;
+//        samplerDesc.compare = CompareFunction::Undefined;
+//        samplerDesc.maxAnisotropy = 1;
+//        Sampler sampler = device.createSampler(samplerDesc);
+
+
+        // The texture sampler binding
+//        BindGroupLayoutEntry& samplerBindingLayout = bindingLayoutEntries[2];
+//        samplerBindingLayout.binding = 2;
+//        samplerBindingLayout.visibility = ShaderStage::Fragment;
+//        samplerBindingLayout.sampler.type = SamplerBindingType::Filtering;
+    }
+
+
     // Create the pipeline layout
     {
+        BindGroupLayout layouts[2] { bindGroupLayout, textureBindGroupLayout  };
+        
         PipelineLayoutDescriptor layoutDesc{};
-        layoutDesc.bindGroupLayoutCount = 1;
-        layoutDesc.bindGroupLayouts = (WGPUBindGroupLayout*)&bindGroupLayout;
+        layoutDesc.bindGroupLayoutCount = 2;
+        layoutDesc.bindGroupLayouts = (WGPUBindGroupLayout*)layouts;
+     //   layoutDesc.bindGroupLayouts = (WGPUBindGroupLayout*)&bindGroupLayout;
 
 
         // Pipeline layout
         PipelineLayout layout = device.createPipelineLayout(layoutDesc);
         pipelineDesc.layout = layout;
     }
+    
+#ifdef WEBGPU_BACKEND_DAWN
+        // Check for pending error callbacks
+        device.tick();
+#endif
+
 
     AD_LOG(info) << "Creating Render pipeline";
     pipeline = device.createRenderPipeline(pipelineDesc);
@@ -514,7 +575,7 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
             bindings[1].size = b.getSize();
         }
 
-        materialBuffer_ = bufferManager_->allocStorageChunk(64 * sizeof(MaterialData));
+        materialBuffer_ = bufferManager_->allocStorageChunk(64 * sizeof(MaterialShaderData));
 
         {
             BufferChunk &b = *materialBuffer_;
@@ -531,6 +592,27 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
         bindGroupDesc.entries = bindings;
         bindGroup = device.createBindGroup(bindGroupDesc);
     }
+
+#ifdef WEBGPU_BACKEND_DAWN
+        // Check for pending error callbacks
+        device.tick();
+#endif
+
+    {
+        BindGroupEntry bindings[1];
+
+	    bindings[0].binding = 0;
+        bindings[0].textureView = pickerPass_->getTextureView();
+        
+        BindGroupDescriptor bindGroupDesc;
+        bindGroupDesc.layout = textureBindGroupLayout;
+        bindGroupDesc.entryCount = 1;
+        bindGroupDesc.entries = bindings;
+
+        textureBindGroup = device.createBindGroup(bindGroupDesc);
+    }
+
+
 
 #ifdef WEBGPU_BACKEND_DAWN
         // Check for pending error callbacks
@@ -579,10 +661,10 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
         };
         
         for(int i = 0; i < (int)ARTD_ARRAY_LENGTH(colors); ++i) {
-            materials_.push_back(ObjectBase::make<MaterialData>());
+            materials_.push_back(ObjectBase::make<Material>(this));
             auto pMat = materials_[i].get();
-            pMat->diffuse = colors[i];
-            pMat->id_ = i;
+            pMat->setDiffuse(colors[i]);
+            pMat->setId(i);
         }
 
         // create two meshes cube and cone
@@ -805,15 +887,15 @@ GpuEngineImpl::renderFrame()  {
 
             int countLeft = (int)materials_.size();
             // temp buffer to upload
-            const int maxCount = (int)(bufferSize/sizeof(MaterialData));
+            const int maxCount = (int)(bufferSize/sizeof(MaterialShaderData));
             int uploadCount = (int)std::min(maxCount,countLeft);
-            MaterialData *iData = (MaterialData *)workBuffer.get();
+            MaterialShaderData *iData = (MaterialShaderData *)workBuffer.get();
 
             while(countLeft > 0) {
                 int i = 0;
                 
                 for(; i < uploadCount; ++i) {
-                    iData[i] = *materials_[i];
+                    materials_[i]->loadShaderData(iData[i]);
                 }
                 countLeft -= i;
                 // upload a buffer full
@@ -955,9 +1037,9 @@ GpuEngineImpl::renderFrame()  {
 //            AD_LOG(info)  << "DEBUG FRAME " <<  timing().frameNumber();
 //        }
                 
-        // set group for specific shader and data being used.
+        // set group for scene specific data being used.
         renderPass.setBindGroup(0, bindGroup, 0, nullptr);
-
+        renderPass.setBindGroup(1, textureBindGroup, 0, nullptr);
 
         for(size_t i = 0; i < drawables_.size(); ++i) {
 

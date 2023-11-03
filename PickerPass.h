@@ -17,6 +17,10 @@ public:
     }
     PickerPass(GpuEngineImpl *owner);
     ~PickerPass();
+
+    INL wgpu::TextureView  getTextureView() {
+        return(renderTextureView_);
+    }
 private:
     wgpu::Device device_;
     uint32_t width_;

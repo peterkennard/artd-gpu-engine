@@ -60,6 +60,15 @@ ShaderManager::loadShaderModule(const fs::path& path) {
         file.seekg(0);
         file.read(shaderSource.data(), size);
         shaderCode = shaderSource.c_str();
+        // TODO: preprocessing needs to be handled in resource target in build
+        // skip over leading R(" if present for the "includeable" shaders
+        if(shaderCode[0] == 'R'
+            && shaderCode[1] == '\"'
+            && shaderCode[2] == ')'
+           )
+         {
+            shaderCode += 3;
+         }
     }
 	ShaderModuleWGSLDescriptor shaderCodeDesc;
 	shaderCodeDesc.chain.next = nullptr;

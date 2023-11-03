@@ -20,6 +20,7 @@
 #include "artd/LambdaEventQueue.h"
 #include "./InputManager.h"
 #include "./FpsMonitor.h"
+#include "./Material.h"
 
 #include <array>
 #include <chrono>
@@ -61,18 +62,6 @@ struct InstanceData  {
 
 static_assert(sizeof(InstanceData) % 16 == 0);
 
-struct MaterialData  {
-    glm::vec3 diffuse;
-    int32_t id_;
-    glm::vec3 specular;
-    float pad0_;
-
-    INL int32_t getId() {
-        return(id_);
-    }
-};
-
-static_assert(sizeof(MaterialData) % 16 == 0);
 
 
 using namespace wgpu;
@@ -111,6 +100,7 @@ protected:
     Texture depthTexture = nullptr;
 
     BindGroup bindGroup = nullptr;
+    BindGroup textureBindGroup = nullptr;
 
     // global scene uniforms camera and lights, test data things constant for a single frame of animation/render.
     SceneUniforms uniforms;
@@ -202,7 +192,7 @@ protected:
     // TODO: active vs: turned off ( visible invisible ) with or without parents ...
     std::vector<ObjectPtr<LightNode>> lights_;
     // TODO: Integrate into ResourceManager, or create a material manager to handle dynamism creating/deleting
-    std::vector<ObjectPtr<MaterialData>> materials_;
+    std::vector<ObjectPtr<Material>> materials_;
 
     GpuEngineImpl();
     ~GpuEngineImpl();

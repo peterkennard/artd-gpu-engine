@@ -23,7 +23,7 @@ PickerPass::PickerPass(GpuEngineImpl *owner)
 	renderTextureDesc.mipLevelCount = 1;
 	renderTextureDesc.sampleCount = 1;
 	renderTextureDesc.size = { width_, height_, 1 };
-    renderTextureDesc.usage = TextureUsage::RenderAttachment | TextureUsage::CopyDst; // TextureUsage::CopySrc;
+    renderTextureDesc.usage = TextureUsage::RenderAttachment | TextureUsage::TextureBinding | TextureUsage::CopyDst; // TextureUsage::CopySrc;
 	renderTextureDesc.viewFormatCount = 0;
 	renderTextureDesc.viewFormats = nullptr;
 	renderTexture_ = device_.createTexture(renderTextureDesc);
