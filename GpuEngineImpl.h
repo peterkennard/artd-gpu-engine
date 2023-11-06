@@ -194,6 +194,11 @@ protected:
 
     int initScene();
 
+    ObjectPtr<Material> defaultMaterial_;
+    INL ObjectPtr<Material> &getDefaultMaterial() {
+        return(defaultMaterial_);
+    }
+
     // scene graph items
     ObjectPtr<Viewport> viewport_;
     ObjectPtr<CameraNode> camNode_;
@@ -218,8 +223,6 @@ protected:
         Vec3f normal;
         glm::vec2 uv;
     };
-
-// end added 056 items
 
 public:
 

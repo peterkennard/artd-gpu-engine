@@ -35,8 +35,13 @@ class TextureManagerImpl
         INL void setTexture(wgpu::Texture t) {
             tex_ = t;
         }
+        INL void clearOwner() {
+            owner = nullptr;
+        }
         ~CachedTexture() override {
-            owner->onTextureDestroy(this);
+            if(owner) {
+                owner->onTextureDestroy(this);
+            }
         }
         const char *getName() override {
             return(pKey->c_str());
@@ -94,9 +99,13 @@ class TextureManagerImpl
         }
         
         ~CachedTextureView() override {
-            owner->onTextureViewDestroy(this);
+            if(owner) {
+                owner->onTextureViewDestroy(this);
+            }
         }
-
+        INL void clearOwner() {
+            owner = nullptr;
+        }
         TextureManagerImpl *owner;
         const VMapT::key_type *pKey;
 
@@ -258,13 +267,41 @@ class TextureManagerImpl
         }
         return(ret);
     }
+    // Caution for anyone who keeps a reference !!!
     
+    void clearCaches() {
+        
+        for (auto it = cachedViews_.begin(); it != cachedViews_.end(); ++it)
+        {
+            auto sp = it->second.lock();
+            if(sp) {
+                sp->clearOwner();
+            }
+        }
+        for (auto it = cached_.begin(); it != cached_.end(); ++it)
+        {
+            auto sp = it->second.lock();
+            if(sp) {
+                sp->clearOwner();
+            }
+        }
+        cachedViews_.clear();
+        cached_.clear();
+    }
 public:
     
     TextureManagerImpl(GpuEngineImpl *owner)
         : owner_(*owner)
     {
         initNullTexture();
+    }
+
+    ~TextureManagerImpl() {
+        clearCaches();
+    }
+
+    void shutdown() override {
+        clearCaches();
     }
 
     void loadTexture( StringArg pathName,  const std::function<void(ObjectPtr<Texture>) > &onDone) override

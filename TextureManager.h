@@ -22,7 +22,8 @@ protected:
     ObjectPtr<Texture> nullTexture_;
 public:
     virtual ~TextureManager();
-    
+    virtual void shutdown() = 0;
+
     static ObjectPtr<TextureManager> create(GpuEngineImpl *owner);
     
     virtual void loadTexture( StringArg pathName,  const std::function<void(ObjectPtr<Texture>)> &onDone) = 0;

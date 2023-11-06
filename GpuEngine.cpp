@@ -129,7 +129,8 @@ GpuEngineImpl::releaseResources() {
             depthTexture.destroy();
             depthTexture.release();
         }
-
+        
+        textureManager_->shutdown();
         meshLoader_ = nullptr;
         bufferManager_->shutdown();
 
@@ -608,6 +609,17 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
         pixelUnLockLock_.signal(); // start enabled !!
     }
 
+    // create defaultMaterial
+    materials_.clear();
+    {
+        materials_.push_back(ObjectBase::make<Material>(this));
+        defaultMaterial_ = materials_[materials_.size()-1];
+        auto pMat = defaultMaterial_.get();
+        pMat->setDiffuse(Color3f(30,30,30));
+        pMat->setId((int)(materials_.size() - 1));  // TODO: better material Ids ?
+        pMat->bindings_ = createMaterialBindGroup(*pMat);
+    }
+
     int ret = initScene();
 
     AD_LOG(info) << "init complete !";
@@ -666,9 +678,6 @@ GpuEngineImpl::initScene() {
 
     // initialize a scene (big hack)
     {
-        // create some simple test materials.
-        materials_.clear();
-        
         // test colors
         Color3f colors[] = {
             { 36,133,234 },
@@ -680,12 +689,12 @@ GpuEngineImpl::initScene() {
             { 50, 74, 84 },
             { 226, 175, 105 }
         };
-        
+
         for(int i = 0; i < (int)ARTD_ARRAY_LENGTH(colors); ++i) {
             materials_.push_back(ObjectBase::make<Material>(this));
-            auto pMat = materials_[i].get();
+            auto pMat = materials_[materials_.size()-1].get();
             pMat->setDiffuse(colors[i]);
-            pMat->setId(i);
+            pMat->setId((int)(materials_.size() - 1));
         }
 
         textureManager_->loadTexture("test0", [](ObjectPtr<Texture> loaded){
@@ -762,7 +771,7 @@ GpuEngineImpl::initScene() {
         // layout some objects in a ring around the ringGroup_ node
         // assign one of the test materials to it.
         uint32_t materialId = 0;
-        for(uint32_t i = 0; i < 12; ++i)  {
+        for(uint32_t i = 1; i < 12; ++i)  {
         
             MeshNode *node = (MeshNode *)ringGroup_->addChild(ObjectBase::make<MeshNode>());
             node->setId(i + 10);
@@ -775,7 +784,7 @@ GpuEngineImpl::initScene() {
             
             node->setMaterial(materials_[materialId]);
             if(++materialId >= materials_.size()) {
-                materialId = 0;
+                materialId = 1;
             }
             
             if((i & 1) != 0) {
@@ -1060,7 +1069,7 @@ GpuEngineImpl::renderFrame()  {
 
     { // draw the models ( needs to be organized )}
 
-        wgpu::BindGroup lastMatlBindings = nullptr; // materialBindGroup;
+        wgpu::BindGroup lastMaterialBindings = getDefaultMaterial()->getBindings();
 
 //        if(timing().isDebugFrame()) {
 //            AD_LOG(info)  << "DEBUG FRAME " <<  timing().frameNumber();
@@ -1068,7 +1077,7 @@ GpuEngineImpl::renderFrame()  {
                 
         // set group for scene specific data being used.
         renderPass.setBindGroup(0, bindGroup, 0, nullptr);
-        renderPass.setBindGroup(1, lastMatlBindings, 0, nullptr); // default texture
+        renderPass.setBindGroup(1, lastMaterialBindings, 0, nullptr); // default texture
 
         for(size_t i = 0; i < drawables_.size(); ++i) {
 
@@ -1076,10 +1085,10 @@ GpuEngineImpl::renderFrame()  {
             Material *matl = drawable->getMaterial().get();
             auto bindings = matl->getBindings();
                         
-            if(bindings && ( (void*)bindings) != ((void*)lastMatlBindings) ) {
+            if(bindings && ( (void*)bindings) != ((void*)lastMaterialBindings) ) {
 //                if(bindings && (bindings != lastMatlBindings) ) {
 //                if(bindings && ( ((WGPUBindGroupImpl *)bindings) != (WGPUBindGroupImpl *)lastMatlBindings) ) {
-                lastMatlBindings = bindings;
+                lastMaterialBindings = bindings;
                 renderPass.setBindGroup(1, bindings, 0, nullptr);
             }
             DrawableMesh *mesh = drawable->getMesh();
