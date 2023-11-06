@@ -17,8 +17,6 @@ ARTD_BEGIN
 #define INL ARTD_ALWAYS_INLINE
 // #define MIX_BUFFER_TYPES
 
-using namespace wgpu;
-
 #define INL ARTD_ALWAYS_INLINE
 
 static const int maxBuffSize = 0x7FFFFF;
@@ -70,7 +68,7 @@ class ARTD_API_GPU_ENGINE GpuBufferManagerImpl
 
 
     class ManagedGpuBuffer
-        : public Buffer
+        : public wgpu::Buffer
     {
     public:
         // TODO: maybe we need to be able to handle buffers larger than 0x07FFFFFFF ?

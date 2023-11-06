@@ -55,6 +55,7 @@
 #include "./FpsMonitor.h"
 #include "./PickerPass.h"
 #include "./GpuErrorHandler.h"
+#include "./TextureManager.h"
 
 ARTD_BEGIN
 
@@ -303,6 +304,8 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
     
     // ****** shader module part
     resourceManager_ = ResourceManager::create();
+    textureManager_ = TextureManager::create(this);
+
     pickerPass_ = ObjectBase::make<PickerPass>(this);
     
     AD_LOG(info) << "Creating shader module...";
@@ -667,6 +670,14 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
             pMat->setId(i);
         }
 
+        textureManager_->loadTexture("test0", [](ObjectPtr<Texture> loaded){
+            AD_LOG(print) << "Texture:  " << loaded->getName() << " loaded";
+        });
+        
+        textureManager_->loadTexture(RcString("default"), [](ObjectPtr<Texture> loaded){
+            AD_LOG(info) << loaded;
+        });
+        
         // create two meshes cube and cone
 
         std::vector<float> pointData;
@@ -768,14 +779,14 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
 }
 
 void
-GpuEngineImpl::presentImage(TextureView /*texture*/ )  {
+GpuEngineImpl::presentImage(wgpu::TextureView /*texture*/ )  {
     if(headless_) {
         pixelLockLock_.signal();
     } else {
         swapChain.present();
     }
 }
-TextureView
+wgpu::TextureView
 GpuEngineImpl::getNextTexture() {
     if(headless_) {
         return(targetTextureView);
@@ -983,7 +994,7 @@ GpuEngineImpl::renderFrame()  {
         }
     }
     
-    TextureView nextTexture = getNextTexture();
+    wgpu::TextureView nextTexture = getNextTexture();
     if (!nextTexture) {
         AD_LOG(error) << "Cannot acquire next swap chain texture";
         return(1);
@@ -1032,19 +1043,31 @@ GpuEngineImpl::renderFrame()  {
     renderPass.setPipeline(pipeline);
 
     { // draw the models ( needs to be organized )}
-        
+
+        wgpu::BindGroup lastMatlBindings = textureBindGroup;
+
 //        if(timing().isDebugFrame()) {
 //            AD_LOG(info)  << "DEBUG FRAME " <<  timing().frameNumber();
 //        }
                 
         // set group for scene specific data being used.
         renderPass.setBindGroup(0, bindGroup, 0, nullptr);
-        renderPass.setBindGroup(1, textureBindGroup, 0, nullptr);
+        renderPass.setBindGroup(1, lastMatlBindings, 0, nullptr); // default texture
 
         for(size_t i = 0; i < drawables_.size(); ++i) {
 
-            DrawableMesh *mesh = drawables_[i]->getMesh();
+            auto drawable = drawables_[i];
+            Material *matl = drawable->getMaterial().get();
+            auto bindings = matl->getBindings();
+                        
+            if(bindings && ( (void*)bindings) != ((void*)lastMatlBindings) ) {
+//                if(bindings && ( ((WGPUBindGroupImpl *)bindings) != (WGPUBindGroupImpl *)lastMatlBindings) ) {
+                lastMatlBindings = bindings;
+                renderPass.setBindGroup(1, bindings, 0, nullptr);
+            }
+            DrawableMesh *mesh = drawable->getMesh();
 
+            
             if(mesh) {
                 const BufferChunk &iChunk = mesh->iChunk_;
                 const BufferChunk &vChunk = mesh->vChunk_;

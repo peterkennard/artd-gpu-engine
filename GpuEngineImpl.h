@@ -32,6 +32,8 @@ ARTD_BEGIN
 
 class MeshNode;
 class PickerPass;
+class TextureManager;
+class TextureManagerImpl;
 
 #define INL ARTD_ALWAYS_INLINE
 
@@ -83,42 +85,47 @@ protected:
 
     uint32_t width_;
     uint32_t height_;
-    Instance instance = nullptr;
-    Surface surface = nullptr;
-    Adapter adapter = nullptr;
-    Device device = nullptr;
-    std::unique_ptr<ErrorCallback> errorCallback_;
-    std::unique_ptr<DeviceLostCallback> deviceLostCallback_;
-    Queue queue = nullptr;
-    Texture targetTexture = nullptr;
-    TextureView targetTextureView = nullptr;
-    ShaderModule shaderModule = nullptr;
-    RenderPipeline pipeline = nullptr;
-    SwapChain swapChain = nullptr;
-   
-    TextureView depthTextureView = nullptr;
-    Texture depthTexture = nullptr;
 
-    BindGroup bindGroup = nullptr;
-    BindGroup textureBindGroup = nullptr;
+    wgpu::Instance instance = nullptr;
+    wgpu::Surface surface = nullptr;
+    wgpu::Adapter adapter = nullptr;
+    wgpu::Device device = nullptr;
+
+    std::unique_ptr<wgpu::ErrorCallback> errorCallback_;
+    std::unique_ptr<wgpu::DeviceLostCallback> deviceLostCallback_;
+    wgpu::Queue queue = nullptr;
+    wgpu::Texture targetTexture = nullptr;
+    wgpu::TextureView targetTextureView = nullptr;
+    wgpu::ShaderModule shaderModule = nullptr;
+    wgpu::RenderPipeline pipeline = nullptr;
+    wgpu::SwapChain swapChain = nullptr;
+   
+    wgpu::TextureView depthTextureView = nullptr;
+    wgpu::Texture depthTexture = nullptr;
+
+    wgpu::BindGroup bindGroup = nullptr;
+    wgpu::BindGroup textureBindGroup = nullptr;
 
     // global scene uniforms camera and lights, test data things constant for a single frame of animation/render.
     SceneUniforms uniforms;
     
     ObjectPtr<LambdaEventQueue> inputQueue_;
     ObjectPtr<LambdaEventQueue> updateQueue_;
-   friend class PickerPass;
-   ObjectPtr<PickerPass>        pickerPass_;
+    friend class PickerPass;
+    ObjectPtr<PickerPass>       pickerPass_;
 
     // resource management items
     friend class InputManager;
     ObjectPtr<InputManager>     inputManager_;
     ObjectPtr<ResourceManager>  resourceManager_;
     ObjectPtr<GpuBufferManager> bufferManager_;
+    friend class TextureManagerImpl;
+    ObjectPtr<TextureManager>   textureManager_;
+
     ObjectPtr<CachedMeshLoader> meshLoader_;
     ObjectPtr<ShaderManager>    shaderManager_;
 
-    // there won't be too many of these ?? they are 128 bits !!
+    // there won't be too many of these ?? they are aligned 128 bits !!
     ObjectPtr<BufferChunk>      uniformBuffer_;
     ObjectPtr<BufferChunk>      instanceBuffer_;
     ObjectPtr<BufferChunk>      materialBuffer_;
@@ -221,8 +228,8 @@ protected:
     WaitableSignal pixelUnLockLock_;
     
     bool processEvents();
-    void presentImage(TextureView /*texture*/ );
-    TextureView getNextTexture();
+    void presentImage(wgpu::TextureView texture );
+    wgpu::TextureView getNextTexture();
 
 public:
 

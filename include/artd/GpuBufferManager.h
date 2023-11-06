@@ -11,8 +11,6 @@
 
 ARTD_BEGIN
 
-using namespace wgpu;
-
 class GpuEngineImpl;
 class GraphicsContext;
 class BufferDataImpl;
@@ -24,7 +22,7 @@ class GpuEngineImpl;
 class BufferChunk {
 protected:
 
-    Buffer *parent_;  // note this doubles as pointer to parent "Managed Buffer"
+    wgpu::Buffer *parent_;  // note this doubles as pointer to parent "Managed Buffer"
     uint32_t size_;
     uint32_t start_;  // 1/4 start offset
 
@@ -34,7 +32,7 @@ protected:
         , start_(0)
     {}
     
-    INL BufferChunk(Buffer *buf, uint64_t start, uint32_t size)
+    INL BufferChunk(wgpu::Buffer *buf, uint64_t start, uint32_t size)
         : parent_(buf)
         , size_(size)
         , start_((uint32_t)(start >> 2))
@@ -58,7 +56,7 @@ public:
 //    INL uint32_t alignedSize() const {
 //        return(ARTD_ALIGN_UP(size_,4));
 //    }
-    INL Buffer getBuffer() const {
+    INL wgpu::Buffer getBuffer() const {
         if(parent_)
             return(*parent_);
         return(nullptr);
