@@ -49,6 +49,10 @@ public:
     wgpu::BindGroup bindings_ = nullptr;
     ObjectPtr<TextureView> diffuseTex_;
 
+    INL ObjectPtr<TextureView> &getDiffuseTexture() {
+        return(diffuseTex_);
+    }
+
 private:
     MaterialShaderData data_;
 

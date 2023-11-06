@@ -14,8 +14,6 @@ TextureManager::TextureManager() {
 TextureManager::~TextureManager() {
 }
 
-
-
 class TextureManagerImpl
     : public TextureManager
 {
@@ -65,35 +63,43 @@ class TextureManagerImpl
             bytes[6] = (uint8_t)(tvd.format);
             bytes[7] = 0;
         }
-        struct Less
-        {
-            INL bool operator()(const ViewKey &a, const ViewKey &b) const {
-                return((a.pTex < b.pTex) && (a.vdKey < b.vdKey));
-            }
-        };
+        
+        INL bool operator<(const ViewKey& b) const {
+            return((pTex < b.pTex) || (vdKey < b.vdKey));
+        }
         INL bool operator==(const ViewKey &b) const {
             return((pTex == b.pTex) && (vdKey == b.vdKey));
         }
+        struct Comparator
+        {
+            INL bool operator()(const ViewKey &a, const ViewKey &b) const {
+                return((a.pTex < b.pTex) || (a.vdKey < b.vdKey));
+            }
+        };
     };
 
+    class CachedTextureView;
     
-    typedef std::map<ViewKey,WeakPtr<TextureView>>  VMapT;
+    typedef std::map<ViewKey,WeakPtr<CachedTextureView>> VMapT; //  , ViewKey::Comparator>  VMapT;
 
     class CachedTextureView
         : public TextureView
     {
     public:
-        TextureManagerImpl *owner;
-        const VMapT::key_type *pKey;
-        INL void setTextureView(wgpu::TextureView t) {
-            view_ = t;
+        
+        INL CachedTextureView(TextureManagerImpl *o, ObjectPtr<CachedTexture> t, wgpu::TextureView tv)
+            : TextureView(tv,t)
+            , owner(o)
+        {
         }
-        INL void setTexture(ObjectPtr<Texture> t) {
-            viewed_ = t;
-        }
+        
         ~CachedTextureView() override {
             owner->onTextureViewDestroy(this);
         }
+
+        TextureManagerImpl *owner;
+        const VMapT::key_type *pKey;
+
     };
 
     TMapT cached_;
@@ -112,8 +118,45 @@ class TextureManagerImpl
         }
     }
 
+    void initNullTexture() {
+        using namespace wgpu;
+
+        // todo: pick best size.
+        uint32_t width = 1;
+        uint32_t height = 1;
+
+        ObjectPtr<CachedTexture> tex = ObjectBase::make<CachedTexture>();
+
+
+        TextureDescriptor renderTextureDesc;
+        renderTextureDesc.dimension = TextureDimension::_2D;
+        renderTextureDesc.format = TextureFormat::RGBA8Unorm;
+        renderTextureDesc.mipLevelCount = 1;
+        renderTextureDesc.sampleCount = 1;
+        renderTextureDesc.size = { width, height, 1 };
+        renderTextureDesc.usage = TextureUsage::TextureBinding | TextureUsage::CopyDst;
+        renderTextureDesc.viewFormatCount = 0;
+        renderTextureDesc.viewFormats = nullptr;
+        tex->tex_ = device().createTexture(renderTextureDesc);
+
+        cacheTexture("null", tex );
+        nullTexture_ = tex;
+
+        TextureViewDescriptor tViewDesc;
+                tViewDesc.aspect = TextureAspect::All;
+                tViewDesc.baseArrayLayer = 0;
+                tViewDesc.arrayLayerCount = 1;
+                tViewDesc.baseMipLevel = 0;
+                tViewDesc.mipLevelCount = 1;
+                tViewDesc.dimension = TextureViewDimension::_2D;
+                tViewDesc.format = renderTextureDesc.format;
+
+        
+        nullTexView_ = cacheTextureView(tex,tViewDesc);
+    }
+
     ObjectPtr<CachedTexture> generateTest0() {
-    
+
         using namespace wgpu;
 
         ObjectPtr<CachedTexture> tex = ObjectBase::make<CachedTexture>();
@@ -187,14 +230,43 @@ class TextureManagerImpl
 
         return(tex); //tex);
     }
+
+    void cacheTexture(RcString key, ObjectPtr<CachedTexture> &tex) {
+        tex->owner = this;
+        auto inserted = cached_.insert(TMapT::value_type(key, WeakPtr<CachedTexture>(tex)));
+        TMapT::iterator it = inserted.first;
+        tex->pKey = &(it->first);  // actuall address of key in map no-reallocs
+    }
+
+    ObjectPtr<CachedTextureView> cacheTextureView(ObjectPtr<CachedTexture> &tex, wgpu::TextureViewDescriptor &tvd)  {
+        
+        ViewKey key(tvd, tex->getTexture());
+
+        auto found = cachedViews_.find(key);
+
+        ObjectPtr<CachedTextureView> ret;
+        
+        if(found != cachedViews_.end()) {
+            ret = (found->second).lock();
+        } else {
+            // TODO: error handling ?
+            auto view = tex->tex_.createView(tvd);
+            ret = ObjectBase::make<CachedTextureView>(this,tex,view);
+            auto inserted = cachedViews_.insert(VMapT::value_type(key, WeakPtr<CachedTextureView>(ret)));
+            VMapT::iterator it = inserted.first;
+            ret->pKey = &(it->first);  // actuall address of key in map no-reallocs
+        }
+        return(ret);
+    }
     
 public:
     
     TextureManagerImpl(GpuEngineImpl *owner)
         : owner_(*owner)
     {
+        initNullTexture();
     }
-    
+
     void loadTexture( StringArg pathName,  const std::function<void(ObjectPtr<Texture>) > &onDone) override
     {
 //        std::string path(pathName.c_str());
@@ -211,17 +283,13 @@ public:
                 ret = generateTest0();
             }
             if(ret) {
-                ret->owner = this;
-                auto inserted = cached_.insert(MapT::value_type(path, WeakPtr<CachedTexture>(ret)));
-                MapT::iterator it = inserted.first;
-                ret->pKey = &(it->first);  // actuall address of key in map no-reallocs
+                cacheTexture(path,ret);
             }
         }
         onDone(ret);
     }
 
 };
-
 
 ObjectPtr<TextureManager> TextureManager::create(GpuEngineImpl *owner) {
     return(ObjectBase::make<TextureManagerImpl>(owner));

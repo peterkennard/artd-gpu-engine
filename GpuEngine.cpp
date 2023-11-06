@@ -462,7 +462,7 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
     BindGroupLayoutDescriptor bindGroupLayoutDesc1{};
     bindGroupLayoutDesc1.entryCount = 1; // todo take from data struct
     bindGroupLayoutDesc1.entries =  bindingLayouts2;
-    BindGroupLayout textureBindGroupLayout = device.createBindGroupLayout(bindGroupLayoutDesc1);
+    materialBindGroupLayout = device.createBindGroupLayout(bindGroupLayoutDesc1);
         
 #ifdef WEBGPU_BACKEND_DAWN
         // Check for pending error callbacks
@@ -497,7 +497,7 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
 
     // Create the pipeline layout
     {
-        BindGroupLayout layouts[2] { bindGroupLayout, textureBindGroupLayout  };
+        BindGroupLayout layouts[2] { bindGroupLayout, materialBindGroupLayout  };
         
         PipelineLayoutDescriptor layoutDesc{};
         layoutDesc.bindGroupLayoutCount = 2;
@@ -601,32 +601,50 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
         device.tick();
 #endif
 
-    {
-        BindGroupEntry bindings[1];
-
-	    bindings[0].binding = 0;
-        bindings[0].textureView = pickerPass_->getTextureView();
-        
-        BindGroupDescriptor bindGroupDesc;
-        bindGroupDesc.layout = textureBindGroupLayout;
-        bindGroupDesc.entryCount = 1;
-        bindGroupDesc.entries = bindings;
-
-        textureBindGroup = device.createBindGroup(bindGroupDesc);
-    }
-
-
-
-#ifdef WEBGPU_BACKEND_DAWN
-        // Check for pending error callbacks
-        device.tick();
-#endif
+    // this is only for main window
 
     if(headless_) {
         pixelGetter_ = artd::ObjectBase::make<PixelReader>(device, width_,height_);
         pixelUnLockLock_.signal(); // start enabled !!
     }
 
+    int ret = initScene();
+
+    AD_LOG(info) << "init complete !";
+    timing_.init(0);
+    return(ret);
+}
+
+wgpu::BindGroup
+GpuEngineImpl::createMaterialBindGroup(Material &forM) {
+
+    TextureView *diffuse = forM.getDiffuseTexture().get();
+    BindGroupEntry bindings[1];
+
+    if(!diffuse) {
+        diffuse = textureManager_->getNullTextureView().get();
+    }
+    
+    bindings[0].binding = 0;
+    bindings[0].textureView = diffuse->getView();
+
+    BindGroupDescriptor bindGroupDesc;
+    bindGroupDesc.layout = materialBindGroupLayout;
+    bindGroupDesc.entryCount = 1;
+    bindGroupDesc.entries = bindings;
+
+    return(device.createBindGroup(bindGroupDesc));
+}
+
+// TODO: load from some description or have something "initialize" it and set it.
+int
+GpuEngineImpl::initScene() {
+
+
+#ifdef WEBGPU_BACKEND_DAWN
+        // Check for pending error callbacks
+        device.tick();
+#endif
 
     // setup camera
     {
@@ -773,8 +791,6 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
         device.tick();
 #endif
 
-    AD_LOG(info) << "init complete !";
-    timing_.init(0);
     return(0);
 }
 
@@ -1044,7 +1060,7 @@ GpuEngineImpl::renderFrame()  {
 
     { // draw the models ( needs to be organized )}
 
-        wgpu::BindGroup lastMatlBindings = textureBindGroup;
+        wgpu::BindGroup lastMatlBindings = nullptr; // materialBindGroup;
 
 //        if(timing().isDebugFrame()) {
 //            AD_LOG(info)  << "DEBUG FRAME " <<  timing().frameNumber();
@@ -1061,6 +1077,7 @@ GpuEngineImpl::renderFrame()  {
             auto bindings = matl->getBindings();
                         
             if(bindings && ( (void*)bindings) != ((void*)lastMatlBindings) ) {
+//                if(bindings && (bindings != lastMatlBindings) ) {
 //                if(bindings && ( ((WGPUBindGroupImpl *)bindings) != (WGPUBindGroupImpl *)lastMatlBindings) ) {
                 lastMatlBindings = bindings;
                 renderPass.setBindGroup(1, bindings, 0, nullptr);

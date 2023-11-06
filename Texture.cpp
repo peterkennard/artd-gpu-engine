@@ -17,5 +17,8 @@ Texture::getName() {
     return("null");
 }
 
+TextureView::~TextureView() {
+    
+}
 
 ARTD_END

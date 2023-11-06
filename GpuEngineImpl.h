@@ -104,7 +104,10 @@ protected:
     wgpu::Texture depthTexture = nullptr;
 
     wgpu::BindGroup bindGroup = nullptr;
-    wgpu::BindGroup textureBindGroup = nullptr;
+
+    wgpu::BindGroupLayout materialBindGroupLayout = nullptr;
+
+    wgpu::BindGroup createMaterialBindGroup(Material &forM);
 
     // global scene uniforms camera and lights, test data things constant for a single frame of animation/render.
     SceneUniforms uniforms;
@@ -188,6 +191,8 @@ protected:
 
     RenderTimingContext timing_;
     FpsMonitor fpsMonitor_;
+
+    int initScene();
 
     // scene graph items
     ObjectPtr<Viewport> viewport_;

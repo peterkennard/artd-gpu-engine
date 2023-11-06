@@ -31,10 +31,18 @@ public:
 class TextureView
 {
 protected:
-   wgpu::TextureView view_;
-   ObjectPtr<Texture> viewed_;
+    INL TextureView(wgpu::TextureView view, ObjectPtr<artd::Texture> t)
+        : view_(view)
+        , viewed_(t)
+    {}
+    
+    wgpu::TextureView view_;
+    ObjectPtr<artd::Texture> viewed_;
 public:
-    virtual ~TextureView() = 0;
+    INL wgpu::TextureView getView() const {
+        return(view_);
+    }
+    virtual ~TextureView();
 };
 
 
