@@ -69,6 +69,9 @@ InputManager::keyCallback(GLFWwindow* window, int key, int /*scancode*/, int act
         } else {
 
             switch(key) {
+                case GLFW_KEY_F:
+                    owner.freezeAnimation_ = !owner.freezeAnimation_;
+                    return(false);
                 case GLFW_KEY_RIGHT:
                     inc = .005;
                     break;

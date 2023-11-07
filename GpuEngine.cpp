@@ -212,7 +212,7 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
     requiredLimits.limits.maxVertexAttributes = 3;
     //                                          ^ This was a 2
     requiredLimits.limits.maxVertexBuffers = 1;  // max here is 8 TODO: we need the buffer namager to split these up !
-    requiredLimits.limits.maxBufferSize = 128 * sizeof(VertexAttributes);
+    requiredLimits.limits.maxBufferSize = 256 * sizeof(VertexAttributes);
     
     requiredLimits.limits.maxVertexBufferArrayStride = sizeof(VertexAttributes) * 2;  // cx ? does bigger hurt
     
@@ -316,10 +316,7 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
     AD_LOG(info) << "Creating render pipeline...";
     RenderPipelineDescriptor pipelineDesc;
     
-    // Vertex fetch  ###########
-    static std::vector<VertexAttribute> vertexAttribs(3);  // should hold reference ???
-    //                                         ^ This was a 2
-    
+    std::vector<VertexAttribute> vertexAttribs(3);
     // Position attribute
     vertexAttribs[0].shaderLocation = 0;
     vertexAttribs[0].format = VertexFormat::Float32x3;
@@ -336,10 +333,9 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
     vertexAttribs[2].offset = offsetof(VertexAttributes, uv);
     
     VertexBufferLayout vertexBufferLayout;
-    vertexBufferLayout.attributeCount = (uint32_t)vertexAttribs.size();
+    vertexBufferLayout.attributeCount = vertexAttribs.size();
     vertexBufferLayout.attributes = vertexAttribs.data();
     vertexBufferLayout.arrayStride = sizeof(VertexAttributes);
-    
     vertexBufferLayout.stepMode = VertexStepMode::Vertex;
     
     pipelineDesc.vertex.bufferCount = 1;
@@ -648,6 +644,9 @@ GpuEngineImpl::createMaterialBindGroup(Material &forM) {
     return(device.createBindGroup(bindGroupDesc));
 }
 
+
+static MeshNode *staticTestNode;
+
 // TODO: load from some description or have something "initialize" it and set it.
 int
 GpuEngineImpl::initScene() {
@@ -811,16 +810,24 @@ GpuEngineImpl::initScene() {
         {
             materials_.push_back(ObjectBase::make<Material>(this));
             auto pMat = materials_[materials_.size()-1];
-            pMat->setDiffuse(Color3f(20,20,180));
+            pMat->setDiffuse(Color3f(180,180,180));
             pMat->setId((int)(materials_.size() - 1));
-
+            
+            textureManager_->loadBindableTexture("test0", [this, pMat](ObjectPtr<TextureView> tView) {
+                if(pMat) {
+                    pMat->setDiffuseTex(tView);
+                    pMat->bindings_ = createMaterialBindGroup(*(pMat.get()));
+                }
+            });
+            
             lt = glm::mat4(1.0);
             MeshNode *node = (MeshNode *)ringGroup_->addChild(ObjectBase::make<MeshNode>());
             node->setLocalTransform(lt);
             node->setId(maxI + 10);
             node->setMesh(cubeMesh);
             node->setMaterial(pMat);
-            drawables_.push_back(node);  // add to bodgy list of visible drawables
+            drawables_.push_back(node); // add to bodgy list of visible drawables
+            staticTestNode = node;
         }
     }
 
@@ -917,7 +924,7 @@ GpuEngineImpl::renderFrame()  {
 
     // This is here so we have some animation for updating the secne graph test :)
     // we need animation tasks
-    {
+    if(!freezeAnimation_) {
         static float angle = 0; // bodge for test
         
         // Matrix4f lt = ringGroup_->getLocalTransform();
@@ -934,9 +941,13 @@ GpuEngineImpl::renderFrame()  {
         lt[1] = rot[1];
         lt[2] = rot[2];
 
+//        ringGroup_->setLocalTransform(lt);
 
         lights_[0]->setLocalTransform(lt);
-    //    ringGroup_->setLocalTransform(lt);
+        
+        rot = glm::rotate(rot, angle*2.5f, glm::normalize(glm::vec3(0,1.0,1.0)));
+        
+        staticTestNode->setLocalTransform(rot);
     }
 
     {

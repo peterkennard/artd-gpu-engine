@@ -133,6 +133,8 @@ protected:
     ObjectPtr<BufferChunk>      instanceBuffer_;
     ObjectPtr<BufferChunk>      materialBuffer_;
 
+    bool freezeAnimation_ = false;
+    
     class RenderTimingContext
         : public TimingContext
     {

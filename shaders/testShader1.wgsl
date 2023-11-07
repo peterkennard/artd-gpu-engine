@@ -3,7 +3,7 @@ R"(  // this here so can be included in C++ as a string - reader needs to strip 
 struct VertexInput {
 	@builtin(instance_index) instanceIx: u32,
 	@location(0) position: vec3f,
-	@location(1) normal: vec3f, // new attribute
+	@location(1) normal: vec3f,
 	@location(2) uv: vec2f,
 };
 
@@ -51,7 +51,7 @@ struct VertexOutput {
     @builtin(position) position: vec4f,
     @location(0) worldPos: vec4f,
     @location(1) normal: vec3f,
-    @location(2) uv:  vec2f,  // TBD unused now
+    @location(2) uv:  vec2f,
     @location(3) @interpolate(flat) materialIx: u32
 };
 
@@ -99,8 +99,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 	// And we fetch a texel from the texture
 //	let color = textureLoad(tex0, texelCoords, 0).rgb;
 
-//    let texDim = textureDimensions(texture0);
-//    let hasTex0 = (texDim.x + texDim.y) != 2;
+    let texDim = textureDimensions(texture0);
+    let hasTex0 = (texDim.x + texDim.y) != 2;
 
     var diffuseMult = vec3f(0,0,0);
     var specularMult = vec3f(0,0,0);
@@ -214,8 +214,14 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
             }
         }
     }
+    var diffColor: vec3f;
+    if(hasTex0) {
+        diffColor = material.diffuse * textureSample(texture0, sampler0, in.uv).rgb;
+    } else {
+        diffColor = material.diffuse;
+    }
 
-	var color = material.diffuse * diffuseMult + specularMult; // shading;
+	var color = diffColor * diffuseMult + specularMult; // shading;
     if(color.x > 1.0) {
         color.x = 1.0;
     }
@@ -230,4 +236,4 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 	let corrected_color = color; // pow(color, vec3f(2.2));
     return vec4f(corrected_color,1.0); // corrected_color, scnUniforms.color.a);
 }
-// )";
+// )"; // this is here to terminate when included in C++

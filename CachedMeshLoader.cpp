@@ -325,14 +325,11 @@ static void generateSimpleCubeMesh(std::vector<float>& pointData,
 
 	};
 
-//    int vertexCount = 6 * 8;
-//    int indexCount = 6 * 3;
-
     int vertexCount = 36 * 8;
     int indexCount = 36 * 3;
 
     // TODO: load directly into a gpu buffers ??
-    pointData.resize(sizeof(VertexData) * vertexCount);
+    pointData.resize((sizeof(VertexData) / sizeof(float)) * 36);
     VertexData *pVertex =  reinterpret_cast<VertexData *>(pointData.data());
 
     indexData.resize(indexCount * sizeof(TriangleIndices));
@@ -354,8 +351,8 @@ static void generateSimpleCubeMesh(std::vector<float>& pointData,
 		pVertex->normal.z = pData[5];
 
         // tex coords
-		pVertex->uv.x = vertData[6];
-		pVertex->uv.y = vertData[7];
+		pVertex->uv.x = pData[6];
+		pVertex->uv.y = pData[7];
 
         pData += vDataFloats;
 		++pVertex;
