@@ -225,7 +225,7 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
     // Update max uniform buffer size:
     requiredLimits.limits.maxUniformBufferBindingSize = 16 * 4 * sizeof(float) * 2;  // 2x added enough ?
 
-    requiredLimits.limits.maxSamplersPerShaderStage = 1;
+    requiredLimits.limits.maxSamplersPerShaderStage = 4; // 16 is max allowed
 
     // so is this a definition of the maximum renderer viewport size ?
     requiredLimits.limits.maxTextureDimension1D = height_;
@@ -414,7 +414,7 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
     // Create binding layout (don't forget to = Default)
     
     // bindGroupLayout = nullptr;
-    BindGroupLayoutEntry bindingLayouts[3];
+    BindGroupLayoutEntry bindingLayouts[4];
     {
         AD_LOG(info) << "sizeof(SceneUniforms) = " << sizeof(SceneUniforms) << "  sizeof(LightData) = " << sizeof(LightShaderData);
 
@@ -435,11 +435,17 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
         bindingLayouts[2].visibility = ShaderStage::Vertex | ShaderStage::Fragment;
         bindingLayouts[2].buffer.type = BufferBindingType::ReadOnlyStorage;
         bindingLayouts[2].buffer.minBindingSize = sizeof(MaterialShaderData);
+
+        // for now putting this in the uniforms
+        bindingLayouts[3] = Default;
+        bindingLayouts[3].binding = 3;
+        bindingLayouts[3].visibility = ShaderStage::Fragment;
+        bindingLayouts[3].sampler.type = SamplerBindingType::Filtering;
     }
     
     // Create a bind group layout
     BindGroupLayoutDescriptor bindGroupLayoutDesc{};
-    bindGroupLayoutDesc.entryCount = 3; // todo take from data struct
+    bindGroupLayoutDesc.entryCount = 4; // todo take from data struct
     bindGroupLayoutDesc.entries =  bindingLayouts;
     BindGroupLayout bindGroupLayout = device.createBindGroupLayout(bindGroupLayoutDesc);
 
@@ -450,7 +456,7 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
 #endif
 
     
-	// The texture binding
+	// The material bind group layout.
     
     BindGroupLayoutEntry bindingLayouts2[1];
 	BindGroupLayoutEntry& textureBindingLayout = bindingLayouts2[0];
@@ -469,31 +475,6 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
         // Check for pending error callbacks
         device.tick();
 #endif
-
-    // a sampler binding
-
-    {
-        // Create a sampler
-//        SamplerDescriptor samplerDesc;
-//        samplerDesc.addressModeU = AddressMode::ClampToEdge;
-//        samplerDesc.addressModeV = AddressMode::ClampToEdge;
-//        samplerDesc.addressModeW = AddressMode::ClampToEdge;
-//        samplerDesc.magFilter = FilterMode::Linear;
-//        samplerDesc.minFilter = FilterMode::Linear;
-//        samplerDesc.mipmapFilter = MipmapFilterMode::Linear;
-//        samplerDesc.lodMinClamp = 0.0f;
-//        samplerDesc.lodMaxClamp = 1.0f;
-//        samplerDesc.compare = CompareFunction::Undefined;
-//        samplerDesc.maxAnisotropy = 1;
-//        Sampler sampler = device.createSampler(samplerDesc);
-
-
-        // The texture sampler binding
-//        BindGroupLayoutEntry& samplerBindingLayout = bindingLayoutEntries[2];
-//        samplerBindingLayout.binding = 2;
-//        samplerBindingLayout.visibility = ShaderStage::Fragment;
-//        samplerBindingLayout.sampler.type = SamplerBindingType::Filtering;
-    }
 
 
     // Create the pipeline layout
@@ -559,7 +540,7 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
 	{
         uniformBuffer_ = bufferManager_->allocUniformChunk(sizeof(SceneUniforms) + (64 * sizeof(LightShaderData)) );
         
-        BindGroupEntry bindings[3];
+        BindGroupEntry bindings[4];
 
         {
             BufferChunk &b = *uniformBuffer_;
@@ -589,10 +570,29 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
             bindings[2].size = b.getSize();
         }
 
+        {
+            // Create a sampler
+            SamplerDescriptor samplerDesc;
+            samplerDesc.addressModeU = AddressMode::ClampToEdge;
+            samplerDesc.addressModeV = AddressMode::ClampToEdge;
+            samplerDesc.addressModeW = AddressMode::ClampToEdge;
+            samplerDesc.magFilter = FilterMode::Linear;
+            samplerDesc.minFilter = FilterMode::Linear;
+            samplerDesc.mipmapFilter = MipmapFilterMode::Linear;
+            samplerDesc.lodMinClamp = 0.0f;
+            samplerDesc.lodMaxClamp = 1.0f;
+            samplerDesc.compare = CompareFunction::Undefined;
+            samplerDesc.maxAnisotropy = 1;
+            Sampler sampler0_ = device.createSampler(samplerDesc);
+
+            bindings[3].binding = 3;
+            bindings[3].sampler = sampler0_;
+        }
+
         // A bind group contains one or multiple bindings
         BindGroupDescriptor bindGroupDesc;
         bindGroupDesc.layout = bindGroupLayout;
-        bindGroupDesc.entryCount = 3;
+        bindGroupDesc.entryCount = 4;
         bindGroupDesc.entries = bindings;
         bindGroup = device.createBindGroup(bindGroupDesc);
     }
@@ -725,12 +725,11 @@ GpuEngineImpl::initScene() {
 
         ObjectPtr<DrawableMesh> cubeMesh;
 
-    	if (!success) {
-    		AD_LOG(info) << "Could not load geometry!";
-    		return 1;
-    	}
+        if (!success) {
+            AD_LOG(info) << "Could not load geometry!";
+            return 1;
+        }
 
-        //        success = meshLoader_->loadGeometry("cube", pointData, indexData, 6 /* dimensions */);
         success = meshLoader_->loadGeometry("sphere", pointData, indexData, 6 /* dimensions */);
 
         cubeMesh = ObjectBase::make<DrawableMesh>();
@@ -770,8 +769,9 @@ GpuEngineImpl::initScene() {
         
         // layout some objects in a ring around the ringGroup_ node
         // assign one of the test materials to it.
-        uint32_t materialId = 0;
-        for(uint32_t i = 1; i < 12; ++i)  {
+        uint32_t materialId = 1;
+        uint32_t maxI = 13;
+        for(uint32_t i = 1; i < maxI; ++i)  {
         
             MeshNode *node = (MeshNode *)ringGroup_->addChild(ObjectBase::make<MeshNode>());
             node->setId(i + 10);
@@ -792,6 +792,35 @@ GpuEngineImpl::initScene() {
             } else {
                 node->setMesh(cubeMesh);
             }
+        }
+        
+        cubeMesh = nullptr; //
+        success = meshLoader_->loadGeometry("cube", pointData, indexData, 6 /* dimensions */);
+
+        if (!success) {
+            AD_LOG(info) << "Could not load geometry!";
+            return 1;
+        }
+
+        cubeMesh = ObjectBase::make<DrawableMesh>();
+        cubeMesh->indexCount_ = (int)indexData.size();
+        
+        cubeMesh->iChunk_ = bufferManager_->allocIndexChunk((int)indexData.size(), (const uint16_t *)(indexData.data()));
+        cubeMesh->vChunk_ = bufferManager_->allocVertexChunk((int)pointData.size(), pointData.data());
+
+        {
+            materials_.push_back(ObjectBase::make<Material>(this));
+            auto pMat = materials_[materials_.size()-1];
+            pMat->setDiffuse(Color3f(20,20,180));
+            pMat->setId((int)(materials_.size() - 1));
+
+            lt = glm::mat4(1.0);
+            MeshNode *node = (MeshNode *)ringGroup_->addChild(ObjectBase::make<MeshNode>());
+            node->setLocalTransform(lt);
+            node->setId(maxI + 10);
+            node->setMesh(cubeMesh);
+            node->setMaterial(pMat);
+            drawables_.push_back(node);  // add to bodgy list of visible drawables
         }
     }
 

@@ -137,16 +137,16 @@ class TextureManagerImpl
         ObjectPtr<CachedTexture> tex = ObjectBase::make<CachedTexture>();
 
 
-        TextureDescriptor renderTextureDesc;
-        renderTextureDesc.dimension = TextureDimension::_2D;
-        renderTextureDesc.format = TextureFormat::RGBA8Unorm;
-        renderTextureDesc.mipLevelCount = 1;
-        renderTextureDesc.sampleCount = 1;
-        renderTextureDesc.size = { width, height, 1 };
-        renderTextureDesc.usage = TextureUsage::TextureBinding | TextureUsage::CopyDst;
-        renderTextureDesc.viewFormatCount = 0;
-        renderTextureDesc.viewFormats = nullptr;
-        tex->tex_ = device().createTexture(renderTextureDesc);
+        TextureDescriptor tDesc;
+        tDesc.dimension = TextureDimension::_2D;
+        tDesc.format = TextureFormat::RGBA8Unorm;
+        tDesc.mipLevelCount = 1;
+        tDesc.sampleCount = 1;
+        tDesc.size = { width, height, 1 };
+        tDesc.usage = TextureUsage::TextureBinding | TextureUsage::CopyDst;
+        tDesc.viewFormatCount = 0;
+        tDesc.viewFormats = nullptr;
+        tex->tex_ = device().createTexture(tDesc);
 
         cacheTexture("null", tex );
         nullTexture_ = tex;
@@ -158,7 +158,7 @@ class TextureManagerImpl
                 tViewDesc.baseMipLevel = 0;
                 tViewDesc.mipLevelCount = 1;
                 tViewDesc.dimension = TextureViewDimension::_2D;
-                tViewDesc.format = renderTextureDesc.format;
+                tViewDesc.format = tDesc.format;
 
         
         nullTexView_ = cacheTextureView(tex,tViewDesc);
@@ -185,57 +185,36 @@ class TextureManagerImpl
         renderTextureDesc.viewFormats = nullptr;
         tex->tex_ = device().createTexture(renderTextureDesc);
 
-        AD_LOG(print) << "view desc size " << sizeof(TextureViewDescriptor);
+        // Create test image data -
+        std::vector<uint8_t> pixels(4 * width * height);
+        for (uint32_t i = 0; i < width; ++i) {
+            for (uint32_t j = 0; j < height; ++j) {
+                uint8_t *p = &pixels[4 * (j * width + i)];
+                p[0] = (i / 16) % 2 == (j / 16) % 2 ? 255 : 0; // r
+                p[1] = ((i - j) / 16) % 2 == 0 ? 255 : 0; // g
+                p[2] = ((i + j) / 16) % 2 == 0 ? 255 : 0; // b
+                p[3] = 255; // a
+            }
+        }
+    
+        // Upload texture data
+        // Arguments telling which part of the texture we upload to
+        // (together with the last argument of writeTexture)
+        ImageCopyTexture destination;
+        destination.texture = tex->tex_;
+        destination.mipLevel = 0;
+        destination.origin = { 0, 0, 0 }; // equivalent of the offset argument of Queue::writeBuffer
+        destination.aspect = TextureAspect::All; // only relevant for depth/Stencil textures
 
-        //
-        TextureViewDescriptor renderTextureViewDesc;
-                renderTextureViewDesc.aspect = TextureAspect::All;
-                renderTextureViewDesc.baseArrayLayer = 0;
-                renderTextureViewDesc.arrayLayerCount = 1;
-                renderTextureViewDesc.baseMipLevel = 0;
-                renderTextureViewDesc.mipLevelCount = 1;
-                renderTextureViewDesc.dimension = TextureViewDimension::_2D;
-                renderTextureViewDesc.format = renderTextureDesc.format;
+        // Arguments telling how the C++ side pixel memory is laid out
+        TextureDataLayout source;
+        source.offset = 0;
+        source.bytesPerRow = 4 * renderTextureDesc.size.width;
+        source.rowsPerImage = renderTextureDesc.size.height;
 
-        AD_LOG(print) << "view desc size " << sizeof(TextureViewDescriptor);
-
-        
-        auto view = tex->tex_.createView(renderTextureViewDesc);
-
-        AD_LOG(print) << "view " << (void *)view;
-  
-
-    //        // Create test image data -
-    //        std::vector<uint8_t> pixels(4 * width * height);
-    //        for (uint32_t i = 0; i < width; ++i) {
-    //            for (uint32_t j = 0; j < height; ++j) {
-    //                uint8_t *p = &pixels[4 * (j * width + i)];
-    //                p[0] = (i / 16) % 2 == (j / 16) % 2 ? 255 : 0; // r
-    //                p[1] = ((i - j) / 16) % 2 == 0 ? 255 : 0; // g
-    //                p[2] = ((i + j) / 16) % 2 == 0 ? 255 : 0; // b
-    //                p[3] = 255; // a
-    //            }
-    //        }
-    //
-    //
-    //        // Upload texture data
-    //        // Arguments telling which part of the texture we upload to
-    //        // (together with the last argument of writeTexture)
-    //        ImageCopyTexture destination;
-    //        destination.texture = tex->tex_;
-    //        destination.mipLevel = 0;
-    //        destination.origin = { 0, 0, 0 }; // equivalent of the offset argument of Queue::writeBuffer
-    //        destination.aspect = TextureAspect::All; // only relevant for depth/Stencil textures
-    //
-    //        // Arguments telling how the C++ side pixel memory is laid out
-    //        TextureDataLayout source;
-    //        source.offset = 0;
-    //        source.bytesPerRow = 4 * renderTextureDesc.size.width;
-    //        source.rowsPerImage = renderTextureDesc.size.height;
-    //
-    //        // Issue commands
-    //        Queue queue = device().getQueue();
-    //        queue.writeTexture(destination, pixels.data(), pixels.size(), source, renderTextureDesc.size);
+        // Issue commands
+        Queue queue = device().getQueue();
+        queue.writeTexture(destination, pixels.data(), pixels.size(), source, renderTextureDesc.size);
 
         return(tex); //tex);
     }
@@ -246,8 +225,28 @@ class TextureManagerImpl
         TMapT::iterator it = inserted.first;
         tex->pKey = &(it->first);  // actuall address of key in map no-reallocs
     }
+    static TextureViewDimension toTextureViewDimension(TextureDimension td) {
+        switch(td) {
+            case TextureDimension::_1D:
+                return(TextureViewDimension::_1D);
+            case TextureDimension::_2D:
+                return(TextureViewDimension::_2D);
 
-    ObjectPtr<CachedTextureView> cacheTextureView(ObjectPtr<CachedTexture> &tex, wgpu::TextureViewDescriptor &tvd)  {
+// TODO: figure out how to handle these - they are undefined in TextureDimension
+//            case TextureDimension::_2DArray:
+//                return(TextureViewDimension::_2DArray);
+//            case TextureDimension::Cube:
+//                return(TextureViewDimension::Cube);
+//            case TextureDimension::CubeArray:
+//                return(TextureViewDimension::CubeArray);
+                
+            case TextureDimension::_3D:
+                return(TextureViewDimension::_3D);
+            default:
+                return(TextureViewDimension::Undefined);
+        }
+    }
+    ObjectPtr<CachedTextureView> cacheTextureView(ObjectPtr<CachedTexture> &tex, const wgpu::TextureViewDescriptor &tvd)  {
         
         ViewKey key(tvd, tex->getTexture());
 
@@ -296,14 +295,63 @@ public:
         initNullTexture();
     }
 
-    ~TextureManagerImpl() {
-        clearCaches();
-    }
-
     void shutdown() override {
         clearCaches();
     }
 
+    ~TextureManagerImpl() {
+        shutdown();
+    }
+
+    ObjectPtr<CachedTextureView> loadBindableTexture( StringArg pathName, const wgpu::TextureViewDescriptor *tvd)
+    {
+        RcString path(pathName);
+        // TODO: make thread safe do async load
+        auto found = cached_.find(path);
+        ObjectPtr<CachedTexture> texture;
+        ObjectPtr<CachedTextureView> ret;
+        
+        if(found != cached_.end()) {
+            texture = (found->second).lock();
+        } else {
+            if(path == "test0") {
+                texture = generateTest0();
+            }
+            // try load a texture using path to "file"
+            if(texture) {
+                cacheTexture(path, texture);
+            }
+        }
+        if(texture) {
+            wgpu::TextureViewDescriptor vDesc;
+            // if view description in null  generate a reasonable default
+            // for the texture type.
+            
+            if(tvd == nullptr) {
+                tvd = &vDesc;
+                wgpu::Texture vTex = texture->getTexture();
+                
+                vDesc.aspect = TextureAspect::All;
+                vDesc.baseArrayLayer = 0;
+                vDesc.arrayLayerCount = 1;
+                vDesc.baseMipLevel = 0;
+                vDesc.mipLevelCount = vTex.getMipLevelCount();
+                vDesc.dimension = toTextureViewDimension(vTex.getDimension());
+                vDesc.format = vTex.getFormat();
+            }
+            ret = cacheTextureView(texture,*tvd);
+        }
+        return(ret);
+    }
+    
+    void loadBindableTexture( StringArg pathName, const std::function<void(ObjectPtr<TextureView>) > &onDone,
+                             const wgpu::TextureViewDescriptor *tvd) override {
+        ObjectPtr<TextureView> ret = loadBindableTexture(pathName,tvd);
+        // TODO: async loading !!!
+        onDone(ret);
+    }
+
+    
     void loadTexture( StringArg pathName,  const std::function<void(ObjectPtr<Texture>) > &onDone) override
     {
 //        std::string path(pathName.c_str());

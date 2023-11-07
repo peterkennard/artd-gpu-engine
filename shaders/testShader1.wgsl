@@ -57,18 +57,15 @@ struct VertexOutput {
 
 
 
-// Bound variable is a struct
+// whole frame bind group
 @group(0) @binding(0) var<uniform> scnUniforms: SceneUniforms;
 // TODO: not sure if this is right for the array guessing
 @group(0) @binding(1) var<storage> instanceArray : array<InstanceData>;
 @group(0) @binding(2) var<storage> materialArray : array<MaterialData>;
+@group(0) @binding(3) var sampler0: sampler;
 
-// @group(1) @binding(0) var tex0: texture_2d<f32>;
-
-// TODO: from a stack overflow question
-// let grid = &voxel_volume.indirection_pool[pool_index];
-// let cell = (*grid).cells[grid_index].data;
-
+// material bind group
+@group(1) @binding(0) var texture0: texture_2d<f32>;
 
 @vertex
 fn vs_main(in: VertexInput) -> VertexOutput {
@@ -102,6 +99,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 	// And we fetch a texel from the texture
 //	let color = textureLoad(tex0, texelCoords, 0).rgb;
 
+//    let texDim = textureDimensions(texture0);
+//    let hasTex0 = (texDim.x + texDim.y) != 2;
 
     var diffuseMult = vec3f(0,0,0);
     var specularMult = vec3f(0,0,0);
@@ -208,7 +207,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 
                 if(shading > 0) {
                     diffuseMult += shading;
-                 }
+                }
             }
             default: {
                 // do nothing !

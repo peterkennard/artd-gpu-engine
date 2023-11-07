@@ -266,6 +266,9 @@ namespace {
 static void generateSimpleCubeMesh(std::vector<float>& pointData,
                              std::vector<uint16_t>& indexData, float extent)
 {
+    indexData.clear();
+    pointData.clear();
+    
     static const int vDataFloats = 8;
 
 	static const float vertData[] = {
@@ -322,8 +325,11 @@ static void generateSimpleCubeMesh(std::vector<float>& pointData,
 
 	};
 
-	int vertexCount = 36 * 8;
-	int indexCount = 36 * 3;
+//    int vertexCount = 6 * 8;
+//    int indexCount = 6 * 3;
+
+    int vertexCount = 36 * 8;
+    int indexCount = 36 * 3;
 
     // TODO: load directly into a gpu buffers ??
     pointData.resize(sizeof(VertexData) * vertexCount);
@@ -335,20 +341,21 @@ static void generateSimpleCubeMesh(std::vector<float>& pointData,
 	extent *= .5f; //1.0 extent == 1 * 1 * 1 cube
 
     const float *pData = &vertData[0];
+  //  const float *pData = &vertData[6*8];
 
 	for (int i = 0; i < vertexCount; i += 8) {
 
-		pVertex->pos[0] = pData[0] * extent;
-		pVertex->pos[1] = pData[1] * extent;
-		pVertex->pos[2] = pData[2] * extent;
+		pVertex->pos.x = pData[0] * extent;
+		pVertex->pos.y = pData[1] * extent;
+		pVertex->pos.z = pData[2] * extent;
 
-		pVertex->normal[0] = vertData[3];
-		pVertex->normal[1] = vertData[4];
-		pVertex->normal[2] = vertData[5];
+		pVertex->normal.x = pData[3];
+		pVertex->normal.y = pData[4];
+		pVertex->normal.z = pData[5];
 
         // tex coords
-		// pVertex->normal[] = vertData[6];
-		// pVertex->normal[2] = vertData[7];
+		pVertex->uv.x = vertData[6];
+		pVertex->uv.y = vertData[7];
 
         pData += vDataFloats;
 		++pVertex;

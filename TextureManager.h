@@ -27,7 +27,12 @@ public:
     static ObjectPtr<TextureManager> create(GpuEngineImpl *owner);
     
     virtual void loadTexture( StringArg pathName,  const std::function<void(ObjectPtr<Texture>)> &onDone) = 0;
+    virtual void loadBindableTexture( StringArg pathName, const std::function<void(ObjectPtr<TextureView>) > &onDone, const wgpu::TextureViewDescriptor *tvd = nullptr) = 0;
 
+    INL void loadBindableTexture( StringArg pathName, const std::function<void(ObjectPtr<TextureView>) > &onDone, const wgpu::TextureViewDescriptor &tvd) {
+        loadBindableTexture(pathName, onDone, &tvd);
+    };
+\
     INL ObjectPtr<TextureView> &getNullTextureView() {
         return(nullTexView_);
     }
