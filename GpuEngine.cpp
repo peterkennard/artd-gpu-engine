@@ -88,7 +88,7 @@ GpuEngineImpl::initGlfwDisplay() {
     }
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
     window = glfwCreateWindow(width_, height_, "WebGPU Engine", NULL, NULL);
     if (!window) {
         AD_LOG(info) << "Could not open window!";
@@ -259,8 +259,7 @@ GpuEngineImpl::releaseDepthBuffer() {
 
 int
 GpuEngineImpl::resizeSwapChain(int width, int height) {
-    AD_LOG(error) << "Cant resize window yet ! " << glm::vec2(width,height);
-    Thread::sleep(100000);
+    AD_LOG(print) << "Resizing window to " << glm::vec2(width,height);
 
     releaseDepthBuffer();
     releaseSwapChain();
@@ -268,8 +267,7 @@ GpuEngineImpl::resizeSwapChain(int width, int height) {
     initSwapChain(width,height);
     initDepthBuffer();
 
-//    update camera viewport etc
-//    updateProjectionMatrix();
+    viewport_->setRect(0,0,width,height);
 
     return(1);
 }
