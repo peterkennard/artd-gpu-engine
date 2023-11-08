@@ -241,7 +241,19 @@ protected:
     void presentImage(wgpu::TextureView texture );
     wgpu::TextureView getNextTexture();
 
+    wgpu::TextureFormat swapChainFormat_ = wgpu::TextureFormat::BGRA8Unorm;
+    wgpu::TextureFormat depthTextureFormat_ = TextureFormat::Depth24Plus;
+
+    int initSwapChain(int width, int height);
+    void releaseSwapChain();
+
+    int initDepthBuffer();
+    void releaseDepthBuffer();
+
+    int resizeSwapChain(int width, int height);
+
 public:
+
 
     int init(bool headless, int width, int height);
     int renderFrame();

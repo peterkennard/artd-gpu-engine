@@ -107,6 +107,17 @@ InputManager::keyCallback(GLFWwindow* window, int key, int /*scancode*/, int act
 }
 
 void
+InputManager::windowResizeCallback(GLFWwindow* window, int width, int height) {
+
+    getOwner(window).inputQueue_->postEvent(window, [width, height](void *arg) {
+
+        auto &owner = getOwner((GLFWwindow*)arg);
+        owner.resizeSwapChain(width,height);
+        return(false);
+    });
+}
+
+void
 InputManager::setGlfwWindowCallbacks(GLFWwindow *window) {
 
     glfwSetCursorPosCallback(window, &cursorPositionCallback);
@@ -114,8 +125,12 @@ InputManager::setGlfwWindowCallbacks(GLFWwindow *window) {
     glfwSetCursorEnterCallback(window, &cursorEnterCallback);
     glfwSetScrollCallback(window, &scrollCallback);
     glfwSetKeyCallback(window, &keyCallback);
+    
+    // window even callbacks
+    glfwSetFramebufferSizeCallback(window, &windowResizeCallback);
+
     // glfwSetCharCallback(GLFWwindow* handle, GLFWcharfun cbfun)
-    // glfwSetCharModsCallback(GLFWwindow* handle, GLFWcharmodsfun cbfun)
+ //   glfwSetCharModsCallback(GLFWwindow* handle, GLFWcharmodsfun cbfun);
 }
 
 

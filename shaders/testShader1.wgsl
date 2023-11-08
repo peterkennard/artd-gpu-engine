@@ -1,4 +1,4 @@
-R"(  // this here so can be included in C++ as a string - reader needs to strip out
+R"(  // this here so can be included in C++ as a string - file reader needs to strip out if present
 
 struct VertexInput {
 	@builtin(instance_index) instanceIx: u32,
@@ -24,8 +24,8 @@ struct LightData {
 struct SceneUniforms {
     projectionMatrix: mat4x4f,
     viewMatrix: mat4x4f,
-    vpMatrix: mat4x4f,
-    eyePose:  mat4x4f,  // need inverse view ? or this ?
+    vpMatrix: mat4x4f, // projection * view;
+    eyePose:  mat4x4f, // orientation of camera.
     test: mat4x4f,
     time: f32,
     numLights: u32,
@@ -92,12 +92,6 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 	let normal = normalize(in.normal); // the interpolator doesn't keep it normalized !!! ie: rotate it !
 
     let material = materialArray[in.materialIx]; // indirection or by value ? or is it a reference ?
-
-	// We remap UV coords to actual texel coordinates
-//	let texelCoords = vec2i(in.uv * vec2f(textureDimensions(tex0)));
-
-	// And we fetch a texel from the texture
-//	let color = textureLoad(tex0, texelCoords, 0).rgb;
 
     let texDim = textureDimensions(texture0);
     let hasTex0 = (texDim.x + texDim.y) != 2;
@@ -216,6 +210,13 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     }
     var diffColor: vec3f;
     if(hasTex0) {
+    	// maybe if we don't use a sampler.
+    	// We remap UV coords to actual texel coordinates
+        //	let texelCoords = vec2i(in.uv * vec2f(textureDimensions(tex0)));
+
+    	// And we fetch a texel from the texture
+        //	let color = textureLoad(tex0, texelCoords, 0).rgb;
+
         diffColor = material.diffuse * textureSample(texture0, sampler0, in.uv).rgb;
     } else {
         diffColor = material.diffuse;

@@ -110,7 +110,6 @@ GpuEngineImpl::GpuEngineImpl()
     meshLoader_ = ObjectBase::make<CachedMeshLoader>();
     cam->setViewport(viewport_);
     // TODO: we need a scene
-    ringGroup_ = ObjectBase::make<TransformNode>();
     std::memset(&uniforms,0,sizeof(uniforms));
 }
 
@@ -122,14 +121,9 @@ void
 GpuEngineImpl::releaseResources() {
     if(instance) {
 
-        if(depthTextureView) {
-            depthTextureView.release();
-        }
-        if(depthTexture) {
-            depthTexture.destroy();
-            depthTexture.release();
-        }
-        
+        releaseDepthBuffer();
+        releaseSwapChain();
+
         textureManager_->shutdown();
         meshLoader_ = nullptr;
         bufferManager_->shutdown();
@@ -145,9 +139,144 @@ GpuEngineImpl::releaseResources() {
     }
 }
 
+int
+GpuEngineImpl::initSwapChain(int width, int height) {
 
-int GpuEngineImpl::init(bool headless, int width, int height) {
-    
+    queue = device.getQueue();
+    swapChainFormat_ = TextureFormat::BGRA8Unorm;
+
+    if(headless_) {
+        // No more swap chain, but still a target format and a target texture
+
+        TextureDescriptor targetTextureDesc;
+        targetTextureDesc.label = "Render texture";
+        targetTextureDesc.dimension = TextureDimension::_2D;
+        // Any size works here, this is the equivalent of the window size
+        targetTextureDesc.size = { width_, height_, 1 };
+        // Use the same format here and in the render pipeline's color target
+        targetTextureDesc.format = swapChainFormat_;
+        // No need for MIP maps
+        targetTextureDesc.mipLevelCount = 1;
+        // You may set up supersampling here
+        targetTextureDesc.sampleCount = 1;
+        // At least RenderAttachment usage is needed. Also add CopySrc to be able
+        // to retrieve the texture afterwards.
+        targetTextureDesc.usage = TextureUsage::RenderAttachment | TextureUsage::CopySrc;
+        targetTextureDesc.viewFormats = nullptr;
+        targetTextureDesc.viewFormatCount = 0;
+        targetTexture = device.createTexture(targetTextureDesc);
+
+        TextureViewDescriptor targetTextureViewDesc;
+        targetTextureViewDesc.label = "Render texture view";
+        // Render to a single layer
+        targetTextureViewDesc.baseArrayLayer = 0;
+        targetTextureViewDesc.arrayLayerCount = 1;
+        // Render to a single mip level
+        targetTextureViewDesc.baseMipLevel = 0;
+        targetTextureViewDesc.mipLevelCount = 1;
+        // Render to all channels
+        targetTextureViewDesc.aspect = TextureAspect::All;
+        targetTextureView = targetTexture.createView(targetTextureViewDesc);
+
+    } else {
+
+        AD_LOG(info) << "Creating swapchain...";
+#ifdef WEBGPU_BACKEND_WGPU
+        swapChainFormat = surface.getPreferredFormat(adapter);
+#endif
+        SwapChainDescriptor swapChainDesc;
+        swapChainDesc.width = static_cast<uint32_t>(width);
+        swapChainDesc.height = static_cast<uint32_t>(height);
+        swapChainDesc.usage = TextureUsage::RenderAttachment;
+        swapChainDesc.format = swapChainFormat_;
+        swapChainDesc.presentMode = PresentMode::Fifo;
+        swapChain = device.createSwapChain(surface, swapChainDesc);
+        AD_LOG(info) << "Swapchain created " << swapChain;
+    }
+    width_ = width;
+    height_ = height;
+    return(0);
+}
+
+void
+GpuEngineImpl::releaseSwapChain() {
+    if(!headless_) {
+        if(swapChain) {
+            swapChain.release();
+        }
+    } else {
+
+    }
+}
+
+int
+GpuEngineImpl::initDepthBuffer() {
+    // Create the depth texture
+
+    TextureDescriptor depthTextureDesc;
+    depthTextureDesc.dimension = TextureDimension::_2D;
+    depthTextureDesc.format = depthTextureFormat_;
+    depthTextureDesc.mipLevelCount = 1;
+    depthTextureDesc.sampleCount = 1;
+    depthTextureDesc.size = {width_, height_, 1};
+    depthTextureDesc.usage = TextureUsage::RenderAttachment;
+    depthTextureDesc.viewFormatCount = 1;
+    depthTextureDesc.viewFormats = (WGPUTextureFormat*)&depthTextureFormat_;
+    AD_LOG(info) << "Creating Depth texture";
+    depthTexture = device.createTexture(depthTextureDesc);
+    AD_LOG(info) << "Depth texture: " << depthTexture;
+
+	// Create the view of the depth texture manipulated by the rasterizer
+
+    TextureViewDescriptor depthTextureViewDesc;
+    depthTextureViewDesc.aspect = TextureAspect::DepthOnly;
+    depthTextureViewDesc.baseArrayLayer = 0;
+    depthTextureViewDesc.arrayLayerCount = 1;
+    depthTextureViewDesc.baseMipLevel = 0;
+    depthTextureViewDesc.mipLevelCount = 1;
+    depthTextureViewDesc.dimension = TextureViewDimension::_2D;
+    depthTextureViewDesc.format = depthTextureFormat_;
+    AD_LOG(info) << "Creating Depth texture view";
+    depthTextureView = depthTexture.createView(depthTextureViewDesc);
+    AD_LOG(info) << "Depth texture view: " << depthTextureView;
+
+    if(depthTextureView == nullptr) {
+        return(1);
+    }
+    return(0);
+}
+
+void
+GpuEngineImpl::releaseDepthBuffer() {
+    if(depthTextureView) {
+        depthTextureView.release();
+    }
+    if(depthTexture) {
+        depthTexture.destroy();
+        depthTexture.release();
+    }
+}
+
+int
+GpuEngineImpl::resizeSwapChain(int width, int height) {
+    AD_LOG(error) << "Cant resize window yet ! " << glm::vec2(width,height);
+    Thread::sleep(100000);
+
+    releaseDepthBuffer();
+    releaseSwapChain();
+
+    initSwapChain(width,height);
+    initDepthBuffer();
+
+//    update camera viewport etc
+//    updateProjectionMatrix();
+
+    return(1);
+}
+
+int
+GpuEngineImpl::init(bool headless, int width, int height) {
+
     {
         auto eventPool = ObjectBase::make<LambdaEventQueue::LambdaEventPool>();
  
@@ -156,10 +285,10 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
     }
     
     
-    
     width_ = width;
     height_ = height;
     headless_ = headless;
+    int ret;  // return code
     
     AD_LOG(info) << "initializing " << (headless_ ? "headless" : "windowed") << " test engine";
     
@@ -189,7 +318,7 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
     if(headless_) {
         surface = nullptr;  // done in constructor
     } else {
-        int ret = initGlfwDisplay();
+        ret = initGlfwDisplay();
         if(ret) {
             return(ret);
         }
@@ -249,64 +378,19 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
 
     
     shaderManager_ = ObjectBase::make<ShaderManager>(device);
-    
-    queue = device.getQueue();
-    
-    TextureFormat swapChainFormat = TextureFormat::BGRA8Unorm;
-    
-    if(headless_) {
-        // No more swap chain, but still a target format and a target texture
-        
-        TextureDescriptor targetTextureDesc;
-        targetTextureDesc.label = "Render texture";
-        targetTextureDesc.dimension = TextureDimension::_2D;
-        // Any size works here, this is the equivalent of the window size
-        targetTextureDesc.size = { width_, height_, 1 };
-        // Use the same format here and in the render pipeline's color target
-        targetTextureDesc.format = swapChainFormat;
-        // No need for MIP maps
-        targetTextureDesc.mipLevelCount = 1;
-        // You may set up supersampling here
-        targetTextureDesc.sampleCount = 1;
-        // At least RenderAttachment usage is needed. Also add CopySrc to be able
-        // to retrieve the texture afterwards.
-        targetTextureDesc.usage = TextureUsage::RenderAttachment | TextureUsage::CopySrc;
-        targetTextureDesc.viewFormats = nullptr;
-        targetTextureDesc.viewFormatCount = 0;
-        targetTexture = device.createTexture(targetTextureDesc);
-        
-        TextureViewDescriptor targetTextureViewDesc;
-        targetTextureViewDesc.label = "Render texture view";
-        // Render to a single layer
-        targetTextureViewDesc.baseArrayLayer = 0;
-        targetTextureViewDesc.arrayLayerCount = 1;
-        // Render to a single mip level
-        targetTextureViewDesc.baseMipLevel = 0;
-        targetTextureViewDesc.mipLevelCount = 1;
-        // Render to all channels
-        targetTextureViewDesc.aspect = TextureAspect::All;
-        targetTextureView = targetTexture.createView(targetTextureViewDesc);
-        
-    } else {
-        
-        AD_LOG(info) << "Creating swapchain...";
-#ifdef WEBGPU_BACKEND_WGPU
-        swapChainFormat = surface.getPreferredFormat(adapter);
-#endif
-        SwapChainDescriptor swapChainDesc;
-        swapChainDesc.width = width_;
-        swapChainDesc.height = height_;
-        swapChainDesc.usage = TextureUsage::RenderAttachment;
-        swapChainDesc.format = swapChainFormat;
-        swapChainDesc.presentMode = PresentMode::Fifo;
-        swapChain = device.createSwapChain(surface, swapChainDesc);
-        AD_LOG(info) << "Swapchain created " << swapChain;
-    }
-    
-    // ****** shader module part
     resourceManager_ = ResourceManager::create();
     textureManager_ = TextureManager::create(this);
 
+    ret = initSwapChain(width,height);
+    if(ret) {
+        return(ret);
+    }
+    depthTextureFormat_ = TextureFormat::Depth24Plus;
+    ret = initDepthBuffer();
+    if(ret) {
+        return(ret);
+    }
+    
     pickerPass_ = ObjectBase::make<PickerPass>(this);
     
     AD_LOG(info) << "Creating shader module...";
@@ -381,7 +465,8 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
     blendState.alpha.operation = BlendOperation::Add;
     
     static ColorTargetState colorTarget;
-    colorTarget.format = swapChainFormat;
+    
+    colorTarget.format = swapChainFormat_;
     colorTarget.blend = &blendState;
     colorTarget.writeMask = ColorWriteMask::All; // We could write to only some of the color channels.
     
@@ -389,13 +474,11 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
     // attachment.
     fragmentState.targetCount = 1;
     fragmentState.targets = &colorTarget;
-    
-    TextureFormat depthTextureFormat = TextureFormat::Depth24Plus;
-    
+
     DepthStencilState depthStencilState = Default;
     depthStencilState.depthCompare = CompareFunction::Less;
     depthStencilState.depthWriteEnabled = true;
-    depthStencilState.format = depthTextureFormat;
+    depthStencilState.format = depthTextureFormat_;
     depthStencilState.stencilReadMask = 0;
     depthStencilState.stencilWriteMask = 0;
     
@@ -498,37 +581,6 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
     pipeline = device.createRenderPipeline(pipelineDesc);
     AD_LOG(info) << "Render pipeline: " << pipeline;
 
-    // Create the depth texture
-	{
-        TextureDescriptor depthTextureDesc;
-        depthTextureDesc.dimension = TextureDimension::_2D;
-        depthTextureDesc.format = depthTextureFormat;
-        depthTextureDesc.mipLevelCount = 1;
-        depthTextureDesc.sampleCount = 1;
-        depthTextureDesc.size = {width_, height_, 1};
-        depthTextureDesc.usage = TextureUsage::RenderAttachment;
-        depthTextureDesc.viewFormatCount = 1;
-        depthTextureDesc.viewFormats = (WGPUTextureFormat*)&depthTextureFormat;
-        AD_LOG(info) << "Creating Depth texture";
-        depthTexture = device.createTexture(depthTextureDesc);
-        AD_LOG(info) << "Depth texture: " << depthTexture;
-    }
-
-	// Create the view of the depth texture manipulated by the rasterizer
-    {
-        TextureViewDescriptor depthTextureViewDesc;
-        depthTextureViewDesc.aspect = TextureAspect::DepthOnly;
-        depthTextureViewDesc.baseArrayLayer = 0;
-        depthTextureViewDesc.arrayLayerCount = 1;
-        depthTextureViewDesc.baseMipLevel = 0;
-        depthTextureViewDesc.mipLevelCount = 1;
-        depthTextureViewDesc.dimension = TextureViewDimension::_2D;
-        depthTextureViewDesc.format = depthTextureFormat;
-        AD_LOG(info) << "Creating Depth texture view";
-        depthTextureView = depthTexture.createView(depthTextureViewDesc);
-        AD_LOG(info) << "Depth texture view: " << depthTextureView;
-    }
-
     // not really needed here first thing done when rendering a frame
 	uniforms.time = 1.0f;
 
@@ -616,8 +668,7 @@ int GpuEngineImpl::init(bool headless, int width, int height) {
         pMat->bindings_ = createMaterialBindGroup(*pMat);
     }
 
-    int ret = initScene();
-
+    ret = initScene();
     AD_LOG(info) << "init complete !";
     timing_.init(0);
     return(ret);
@@ -656,6 +707,8 @@ GpuEngineImpl::initScene() {
         // Check for pending error callbacks
         device.tick();
 #endif
+
+    ringGroup_ = ObjectBase::make<TransformNode>();
 
     // setup camera
     {

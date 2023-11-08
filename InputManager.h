@@ -17,6 +17,8 @@ class ARTD_API_GPU_ENGINE InputManager {
     static void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
     static void scrollCallback(GLFWwindow* window, double xoffset, double yoffset);
     static void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
+    static void charModsCallback(GLFWwindow* window, unsigned int codepoint, int mods);
+    static void windowResizeCallback(GLFWwindow* window, int width, int height);
 
 public:
     float test[16];  // for testing input handling.
