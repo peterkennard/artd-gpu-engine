@@ -31,9 +31,11 @@ InputManager::cursorEnterCallback(GLFWwindow* /*window*/, int entered)
     }
 }
 void
-InputManager::cursorPositionCallback(GLFWwindow* /*window*/, double xPos, double yPos)
+InputManager::cursorPositionCallback(GLFWwindow* /*window*/,
+                                     double, //  xPos,
+                                     double ) // yPos)
 {
-    AD_LOG(print) << "Mouse: " << glm::vec2(xPos, yPos);
+  //  AD_LOG(print) << "Mouse: " << glm::vec2(xPos, yPos);
 }
 void
 InputManager::mouseButtonCallback(GLFWwindow* /*window*/, int /*button*/, int /*action*/, int /*mods*/)
@@ -43,11 +45,12 @@ InputManager::mouseButtonCallback(GLFWwindow* /*window*/, int /*button*/, int /*
 }
 void
 InputManager::scrollCallback(GLFWwindow* /*window*/,
-                    double xoffset,
-                    double yoffset)
+                    double , // xoffset,
+                    double ) // yoffset)
 {
+    
     // mouse wheel or touch screen
-    AD_LOG(print) << "Wheel: " << glm::vec2(xoffset, yoffset);
+   // AD_LOG(print) << "Wheel: " << glm::vec2(xoffset, yoffset);
 }
 void
 InputManager::keyCallback(GLFWwindow* window, int key, int /*scancode*/, int action, int mods) {
@@ -109,12 +112,18 @@ InputManager::keyCallback(GLFWwindow* window, int key, int /*scancode*/, int act
 void
 InputManager::windowResizeCallback(GLFWwindow* window, int width, int height) {
 
-    getOwner(window).inputQueue_->postEvent(window, [width, height](void *arg) {
+    AD_LOG(print) << "####### resize " << glm::vec2((float)width,(float)height);
+    
+    getOwner(window).renderFrame();
+    
+    //inputQueue_->postEvent(window, [width, height](void *arg) {
 
-        auto &owner = getOwner((GLFWwindow*)arg);
-        owner.resizeSwapChain(width,height);
-        return(false);
-    });
+        
+        //
+//        auto &owner = getOwner((GLFWwindow*)arg);
+//        owner.resizeSwapChain(width,height);
+//        return(false);
+//    });
 }
 
 void

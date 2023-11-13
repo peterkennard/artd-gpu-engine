@@ -932,13 +932,43 @@ GpuEngineImpl::unlockPixels()  {
 
 bool
 GpuEngineImpl::processEvents() {
+  
+    static int recurse = 0;
     
     if(!headless_) {
-        glfwPollEvents();
-        if(glfwWindowShouldClose(window)) {
-            return(false);
+        
+        if((++recurse) <= 1) {
+            
+            // this will recurse and dispatch resize events handled bu the InputManager
+            // when window resize happens so it will block.  The input manager will call
+            // renderFame on resize inside the recursion and pollEvents will block.
+            glfwPollEvents();
+            if(glfwWindowShouldClose(window)) {
+                recurse = 1;
+                return(false);
+            }
+        } else {
+            
+            static int sz[2] = {-1,-1};
+            
+            int width;
+            int height;
+            
+            glfwGetFramebufferSize(window, &width, &height);
+            
+            if(width != sz[0]
+               || height != sz[1])
+            {
+                AD_LOG(info) << "size change to " << glm::vec2(width,height);
+                sz[0] = width;
+                sz[1] = height;
+                resizeSwapChain(width,height);
+            }
         }
+        --recurse;
     }
+        
+        
     timing_.tickFrame();
     fpsMonitor_.tickFrame(timing_);
     inputQueue_->executeEvents();
@@ -1334,7 +1364,9 @@ extern "C" {
     int runGpuTest(int, char **) {
 
 
-        artd::TypedPropertyMap::test();
+        using namespace artd;
+
+        TypedPropertyMap::test();
 
 
         bool headless = false;
