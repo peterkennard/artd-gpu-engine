@@ -948,20 +948,16 @@ GpuEngineImpl::processEvents() {
                 return(false);
             }
         } else {
-            
-            static int sz[2] = {-1,-1};
-            
+                        
             int width;
             int height;
             
             glfwGetFramebufferSize(window, &width, &height);
             
-            if(width != sz[0]
-               || height != sz[1])
+            if(width != (int)width_
+               || height != (int)height_ )
             {
                 AD_LOG(info) << "size change to " << glm::vec2(width,height);
-                sz[0] = width;
-                sz[1] = height;
                 resizeSwapChain(width,height);
             }
         }
