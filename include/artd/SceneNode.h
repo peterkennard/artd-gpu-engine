@@ -8,12 +8,15 @@
 ARTD_BEGIN
 
 class TransformNode;
+class Scene;
 
 class ARTD_API_GPU_ENGINE SceneNode
 {
 public:
     static const int32_t fHasChildren = 0x01;
     static const int32_t fHasTransform = 0x02;
+    static const int32_t fHasParent    = 0x04;
+
     friend TransformNode;
 protected:
     TransformNode *parent_ = nullptr;
@@ -23,6 +26,11 @@ protected:
     INL bool setParent(TransformNode *parent) {
         if(parent != parent_) {
             parent_ = parent;
+            if(parent) {
+                setFlags(fHasParent);
+            } else {
+                clearFlags(fHasParent);
+            }
             return(true);
         }
         return(false);
@@ -37,6 +45,9 @@ protected:
         return(flags_ & flags);
     }
 public:
+    virtual ~SceneNode()
+    {};
+
     // TODO: have IDs come from a registrar to keep ordered ans searchable
     INL void setId(int32_t id) {
         id_ = id;
@@ -48,12 +59,21 @@ public:
     INL bool hasChildren() const {
         return(flags_ & fHasChildren);
     }
+    INL bool hasParent() const {
+        return(flags_ & fHasParent);
+    }
     INL bool hasTransform() const {
         return(flags_ & fHasTransform);
     }
     INL TransformNode *getParent() const {
-        return(parent_);
+        if(flags_ & fHasParent) {
+            return(parent_);
+        }
+        return(nullptr);
     }
+
+    Scene *getScene() const;
+    
 };
 
 #undef INL

@@ -126,6 +126,43 @@ InputManager::windowResizeCallback(GLFWwindow* window, int width, int height) {
 //    });
 }
 
+bool
+InputManager::pollInputs() {
+    
+    if(owner_.headless_) {
+        return(true); // not done yet
+    }
+    
+    if((++recurse_) <= 1) {
+        
+        // this will recurse and dispatch resize events handled bu the InputManager
+        // when window resize happens pollEvents will block.  The input manager will call
+        // renderFame on resize inside the recursion and pollEvents will block.
+        glfwPollEvents();
+        if(glfwWindowShouldClose(owner_.window)) {
+            recurse_ = 1;
+            return(false);
+        }
+    } else {
+        
+        int width;
+        int height;
+        
+        glfwGetFramebufferSize(owner_.window, &width, &height);
+        
+        if(width != lastWidth_
+           || height != lastHeight_)
+        {
+            AD_LOG(info) << "window size change to " << glm::vec2(width,height);
+            owner_.resizeSwapChain(width,height);
+            lastWidth_ = width;
+            lastHeight_ = height;
+        }
+    }
+    --recurse_;
+    return(true);
+}
+    
 void
 InputManager::setGlfwWindowCallbacks(GLFWwindow *window) {
 

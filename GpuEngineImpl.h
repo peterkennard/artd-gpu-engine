@@ -18,6 +18,8 @@
 #include "artd/GpuBufferManager.h"
 #include "artd/TimingContext.h"
 #include "artd/LambdaEventQueue.h"
+#include "artd/Scene.h"
+
 #include "./InputManager.h"
 #include "./FpsMonitor.h"
 #include "./Material.h"
@@ -264,6 +266,12 @@ public:
     const int *lockPixels(int timeoutMillis);
     void unlockPixels();
 };
+
+
+INL GpuEngineImpl *
+Scene::getOwner() {
+    return(static_cast<GpuEngineImpl*>(owner_));
+}
 
 #undef INL
 

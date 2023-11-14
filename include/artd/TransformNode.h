@@ -61,7 +61,7 @@ protected:
     // TODO: should return reference ot value ?
 	INL const Matrix4f getParentToWorldMatrix() {
         Matrix4f matParent;
-		if (parent_) {
+		if (hasParent()) {
 			matParent = parent_->getLocalToWorldTransform();
 		}
 		return(matParent);

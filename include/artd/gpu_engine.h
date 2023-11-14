@@ -1,7 +1,7 @@
-#ifndef __artd_gpu_engine_h
-#define __artd_gpu_engine_h
+#pragma once
 
 #include "artd/jlib_base.h"
+#include "artd/ObjectBase.h"
 
 // TODO: do we need to handle this for building either static or dll libraries !!
 
@@ -11,4 +11,3 @@
 	#define ARTD_API_GPU_ENGINE ARTD_SHARED_LIBRARY_IMPORT
 #endif
 
-#endif // __artd_gpu_engine_h

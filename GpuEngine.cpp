@@ -813,6 +813,7 @@ GpuEngineImpl::initScene() {
             light->setLightType(LightNode::directional);
             light->setDirection(Vec3f(0.5, .5, 0.1));
             light->setDiffuse(Color3f(1.f,1.f,1.f));
+            light->setAreaWrap(.25);
             
             lights_.push_back(light);
         }
@@ -932,39 +933,10 @@ GpuEngineImpl::unlockPixels()  {
 
 bool
 GpuEngineImpl::processEvents() {
-  
-    static int recurse = 0;
-    
-    if(!headless_) {
-        
-        if((++recurse) <= 1) {
-            
-            // this will recurse and dispatch resize events handled bu the InputManager
-            // when window resize happens so it will block.  The input manager will call
-            // renderFame on resize inside the recursion and pollEvents will block.
-            glfwPollEvents();
-            if(glfwWindowShouldClose(window)) {
-                recurse = 1;
-                return(false);
-            }
-        } else {
-                        
-            int width;
-            int height;
-            
-            glfwGetFramebufferSize(window, &width, &height);
-            
-            if(width != (int)width_
-               || height != (int)height_ )
-            {
-                AD_LOG(info) << "size change to " << glm::vec2(width,height);
-                resizeSwapChain(width,height);
-            }
-        }
-        --recurse;
+
+    if(!(inputManager_->pollInputs())) {
+        return(false);
     }
-        
-        
     timing_.tickFrame();
     fpsMonitor_.tickFrame(timing_);
     inputQueue_->executeEvents();

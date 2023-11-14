@@ -9,6 +9,11 @@ class GpuEngineImpl;
 
 class ARTD_API_GPU_ENGINE InputManager {
     GpuEngineImpl &owner_;
+    int recurse_ = 0;
+    int lastWidth_ = -1;
+    int lastHeight_ = -1;
+    
+    float test[16];  // for testing.
 
     static GpuEngineImpl &getOwner(GLFWwindow * window);
 
@@ -21,11 +26,11 @@ class ARTD_API_GPU_ENGINE InputManager {
     static void windowResizeCallback(GLFWwindow* window, int width, int height);
 
 public:
-    float test[16];  // for testing input handling.
 
     InputManager(GpuEngineImpl *owner);
     ~InputManager();
     void setGlfwWindowCallbacks(GLFWwindow *window);
+    bool pollInputs();
 };
 
 
