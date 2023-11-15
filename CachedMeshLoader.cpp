@@ -799,6 +799,64 @@ static void generateConeMesh(uint32_t numSegments, std::vector<float>& pointData
 
 #endif
 
+ static void generateQuadVertices(std::vector<float>& pointData, std::vector<uint16_t>& indexData) {
+
+    // for now one sided with front face pointing out in Z - Y up X to it's left ( stage right )
+    indexData.clear();
+    pointData.clear();
+
+	float vertData[] = {
+
+	//       position,             uv
+		-2.0f, -1.0f, 0.0f,   0.0f, 0.0f,
+		1.0f, -1.0f, 0.0f,    1.0f, 0.0f,
+		-2.0f, 1.0f, 0.0f,    0.0f, 1.0f,
+		1.0f, 1.0f, 0.0f,     1.0f, 1.0f,
+	};
+
+    const int vDataFloats = 5;
+	const int vertexCount = 4;
+	const int triangleCount = 2;   // two triangles
+
+	const float *pData = &vertData[0];
+
+    pointData.resize((sizeof(VertexData) / sizeof(float)) * 4);
+    VertexData *pVertex =  reinterpret_cast<VertexData *>(pointData.data());
+
+    indexData.resize(triangleCount * sizeof(TriangleIndices));
+    TriangleIndices *pIndex = reinterpret_cast<TriangleIndices*>(indexData.data());
+
+    // todo a generator for rectangles.
+    const float xExtent = .5;
+    const float yExtent = .5;
+
+    for (int i = 0; i < vertexCount; ++i) {
+
+        pVertex->pos.x = pData[0] * xExtent;
+        pVertex->pos.y = pData[1] * yExtent;
+        pVertex->pos.z = pData[2];
+
+        pVertex->normal.x = 0.0;
+        pVertex->normal.y = 0.0;
+        pVertex->normal.z = 1.0;
+
+        // tex coords
+        pVertex->uv.x = pData[3];
+        pVertex->uv.y = pData[4];
+
+        pData += vDataFloats;
+        ++pVertex;
+    }
+
+    pIndex->indices[0] = 0;
+    pIndex->indices[1] = 1;
+    pIndex->indices[2] = 2;
+     ++pIndex;
+    pIndex->indices[0] = 1;
+    pIndex->indices[1] = 3;
+    pIndex->indices[2] = 2;
+}
+
 } // end anonymous namespace
 
 bool
@@ -826,6 +884,11 @@ CachedMeshLoader::loadGeometry(const fs::path& path, std::vector<float>& pointDa
                              indexData, 12, 24);
         return(true);
 
+    }
+    if(path == "quad") {
+        generateQuadVertices( pointData,
+                              indexData );
+        return(true);
     }
     if(path == "octoSphere") {
         generateOctoSphere( pointData,
