@@ -1,14 +1,24 @@
 #include "./GpuEngineImpl.h"
 #include "artd/Scene.h"
+#include "artd/LightNode.h"
 
 ARTD_BEGIN
+
+class SceneRoot
+    : public TransformNode
+{
+public:
+    SceneRoot(Scene *owner) {
+        parent_ = reinterpret_cast<TransformNode *>(owner);
+        clearFlags(fHasTransform | fHasParent);
+        setId(-1);
+    }
+};
 
 Scene::Scene(GpuEngine *e)
     : owner_(e)
 {
-    setId(0);
-    clearFlags(fHasTransform | fHasParent);
-    parent_ = nullptr;
+    rootNode_ = ObjectBase::make<TransformNode>();
 }
 
 Scene::~Scene()
@@ -16,9 +26,26 @@ Scene::~Scene()
 }
 
 SceneNode *
-Scene::addSceneChild(ObjectPtr<SceneNode> child) {
-    AD_LOG(info) << ( void *)(child.get());
-    return(nullptr);
+Scene::addChild(ObjectPtr<SceneNode> child) {
+    if(dynamic_cast<LightNode*>(child.get())) {
+        lights_.push_back(static_cast<LightNode*>(child.get()));
+    }
+    return(rootNode_->addChild(child));
+}
+
+void
+Scene::removeChild(SceneNode *child) {
+    
+    // TODO: we need to update the light list
+    // when a light is removed - even if attached to a
+    // lower down the tree node.
+    
+    rootNode_->removeChild(child);
+}
+
+void
+Scene::tickAnimations(TimingContext &timing) {
+    timing.isDebugFrame();
 }
 
 

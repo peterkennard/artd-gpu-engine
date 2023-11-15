@@ -181,7 +181,7 @@ protected:
            //     log.info(" really small frame time " + elapsedSinceLast_);
            // }
 
-            // todo apply epocch start to this ? keep monotonic accurate for clock time ?
+            // todo apply epoch start to this ? keep monotonic accurate for clock time ?
             frameTime_ += elapsedSinceLast_;
             debugTime_ += elapsedSinceLast_;
             if(debugTime_ > debugInterval_) {
@@ -196,6 +196,8 @@ protected:
     RenderTimingContext timing_;
     FpsMonitor fpsMonitor_;
 
+    ObjectPtr<Scene> currentScene_;
+
     int initScene();
 
     ObjectPtr<Material> defaultMaterial_;
@@ -203,17 +205,13 @@ protected:
         return(defaultMaterial_);
     }
 
-    // scene graph items
-    ObjectPtr<Viewport> viewport_;
-    ObjectPtr<CameraNode> camNode_;
-    ObjectPtr<TransformNode> ringGroup_;
-    // TODO: to be grouped by shader/pipeline  Just a hack for now.
-    std::vector<MeshNode*> drawables_;
-
-    // TODO: active vs: turned off ( visible invisible ) with or without parents ...
-    std::vector<ObjectPtr<LightNode>> lights_;
     // TODO: Integrate into ResourceManager, or create a material manager to handle dynamism creating/deleting
     std::vector<ObjectPtr<Material>> materials_;
+
+    ObjectPtr<Viewport> viewport_;
+    ObjectPtr<CameraNode> camNode_;
+    // TODO: to be grouped by shader/pipeline  Just a hack for now.
+    std::vector<MeshNode*> drawables_;
 
     GpuEngineImpl();
     ~GpuEngineImpl();

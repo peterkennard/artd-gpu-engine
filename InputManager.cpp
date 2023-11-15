@@ -102,7 +102,7 @@ InputManager::keyCallback(GLFWwindow* window, int key, int /*scancode*/, int act
         owner.uniforms.test[index] = inc;
 
         if(index == 0) {
-            owner.lights_[0]->setAreaWrap(inc);
+            owner.currentScene_->lights_[0]->setAreaWrap(inc);
         }
 
         return(false);

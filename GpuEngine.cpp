@@ -706,8 +706,10 @@ GpuEngineImpl::initScene() {
         device.tick();
 #endif
 
-    ringGroup_ = ObjectBase::make<TransformNode>();
-
+    currentScene_ = ObjectBase::make<Scene>(this);
+    ObjectPtr<TransformNode> ringGroup = ObjectBase::make<TransformNode>();
+    currentScene_->addChild(ringGroup);
+    
     // setup camera
     {
         glm::mat4 camPose(1.0);
@@ -792,7 +794,7 @@ GpuEngineImpl::initScene() {
         Matrix4f lt(1.0);
         
         lt = glm::translate(lt, glm::vec3(0.0, 0.0, 3.0));
-        ringGroup_->setLocalTransform(lt);
+        ringGroup->setLocalTransform(lt);
         
         AD_LOG(info) << lt;
 
@@ -804,18 +806,15 @@ GpuEngineImpl::initScene() {
 
         AD_LOG(info) << drot;
 
-        // create a test "Scene"
         // Create some lights
         
         {
-            lights_.clear();
             ObjectPtr<LightNode> light = ObjectBase::make<LightNode>();
             light->setLightType(LightNode::directional);
             light->setDirection(Vec3f(0.5, .5, 0.1));
             light->setDiffuse(Color3f(1.f,1.f,1.f));
             light->setAreaWrap(.25);
-            
-            lights_.push_back(light);
+            currentScene_->addChild(light);
         }
         
         // layout some objects in a ring around the ringGroup_ node
@@ -824,7 +823,7 @@ GpuEngineImpl::initScene() {
         uint32_t maxI = 13;
         for(uint32_t i = 1; i < maxI; ++i)  {
         
-            MeshNode *node = (MeshNode *)ringGroup_->addChild(ObjectBase::make<MeshNode>());
+            MeshNode *node = (MeshNode *)ringGroup->addChild(ObjectBase::make<MeshNode>());
             node->setId(i + 10);
 
             lt = glm::mat4(1.0);
@@ -873,7 +872,7 @@ GpuEngineImpl::initScene() {
             });
             
             lt = glm::mat4(1.0);
-            MeshNode *node = (MeshNode *)ringGroup_->addChild(ObjectBase::make<MeshNode>());
+            MeshNode *node = (MeshNode *)ringGroup->addChild(ObjectBase::make<MeshNode>());
             node->setLocalTransform(lt);
             node->setId(maxI + 10);
             node->setMesh(cubeMesh);
@@ -940,6 +939,7 @@ GpuEngineImpl::processEvents() {
     timing_.tickFrame();
     fpsMonitor_.tickFrame(timing_);
     inputQueue_->executeEvents();
+    currentScene_->tickAnimations(timing_);
     updateQueue_->executeEvents();
     return(true);
 }
@@ -977,7 +977,7 @@ GpuEngineImpl::renderFrame()  {
         static float angle = 0; // bodge for test
         
         // Matrix4f lt = ringGroup_->getLocalTransform();
-        Matrix4f lt = lights_[0]->getLocalTransform();
+        Matrix4f lt = currentScene_->lights_[0]->getLocalTransform();
 
         Matrix4f rot;
         angle += timing_.lastFrameDt() * .2;
@@ -990,9 +990,7 @@ GpuEngineImpl::renderFrame()  {
         lt[1] = rot[1];
         lt[2] = rot[2];
 
-//        ringGroup_->setLocalTransform(lt);
-
-        lights_[0]->setLocalTransform(lt);
+        currentScene_->lights_[0]->setLocalTransform(lt);
         
         rot = glm::rotate(rot, angle*2.5f, glm::normalize(glm::vec3(0,1.0,1.0)));
         
@@ -1069,10 +1067,10 @@ GpuEngineImpl::renderFrame()  {
             uniforms.eyePose = camera->getPose(); // glm::inverse(camera->getView());
             uniforms.vpMatrix = uniforms.projectionMatrix * uniforms.viewMatrix;
 
-            uniforms.numLights = (uint32_t)lights_.size();
+            uniforms.numLights = (uint32_t)currentScene_->lights_.size();
 
             const int initialMax = (int)((bufferSize-headerSize)/sizeof(LightShaderData));
-            int countLeft = (int)lights_.size();
+            int countLeft = uniforms.numLights;
             int uploadCount = (int)std::min(initialMax,countLeft);
             
 
@@ -1089,7 +1087,7 @@ GpuEngineImpl::renderFrame()  {
                 
             for(;;) {
                 for(int i = 0; i < uploadCount; ++i) {
-                    lights_[lightIx]->loadShaderData(*(LightShaderData*)outBytes);
+                    currentScene_->lights_[lightIx]->loadShaderData(*(LightShaderData*)outBytes);
                     ++lightIx;
                     outBytes += sizeof(LightShaderData);
                 }

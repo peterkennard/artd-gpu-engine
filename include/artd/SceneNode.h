@@ -9,6 +9,7 @@ ARTD_BEGIN
 
 class TransformNode;
 class Scene;
+class GpuEngine;
 
 class ARTD_API_GPU_ENGINE SceneNode
 {
@@ -46,7 +47,7 @@ protected:
     }
 public:
     virtual ~SceneNode()
-    {};
+    {}
 
     // TODO: have IDs come from a registrar to keep ordered ans searchable
     INL void setId(int32_t id) {
@@ -71,9 +72,8 @@ public:
         }
         return(nullptr);
     }
-
     Scene *getScene() const;
-    
+    GpuEngine *getEngine() const;
 };
 
 #undef INL
