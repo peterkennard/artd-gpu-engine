@@ -14,28 +14,21 @@ class GpuEngine;
 class ARTD_API_GPU_ENGINE SceneNode
 {
 public:
-    static const int32_t fHasChildren = 0x01;
+    static const int32_t fHasChildren  = 0x01;
     static const int32_t fHasTransform = 0x02;
     static const int32_t fHasParent    = 0x04;
+    static const int32_t fIsDrawable   = 0x08;
 
     friend TransformNode;
+    friend Scene;
+    
 protected:
     TransformNode *parent_ = nullptr;
     int32_t flags_ = 0;
     int32_t id_ = -1;
 
-    INL bool setParent(TransformNode *parent) {
-        if(parent != parent_) {
-            parent_ = parent;
-            if(parent) {
-                setFlags(fHasParent);
-            } else {
-                clearFlags(fHasParent);
-            }
-            return(true);
-        }
-        return(false);
-    }
+    bool setParent(TransformNode *parent);
+
     INL void setFlags(uint32_t flags) {
         flags_ |= flags;
     }
@@ -45,9 +38,15 @@ protected:
     INL int32_t testFlags(int flags) const {
         return(flags_ & flags);
     }
+
+    void onAttach(Scene *s);
+    void onDetach(Scene *s);
+    void attachAllChildren(Scene *s);
+    void detachAllChildren(Scene *s);
+
+
 public:
-    virtual ~SceneNode()
-    {}
+    virtual ~SceneNode();
 
     // TODO: have IDs come from a registrar to keep ordered ans searchable
     INL void setId(int32_t id) {
@@ -65,6 +64,9 @@ public:
     }
     INL bool hasTransform() const {
         return(flags_ & fHasTransform);
+    }
+    INL bool isDrawable() const {
+        return(flags_ & fIsDrawable);
     }
     INL TransformNode *getParent() const {
         if(flags_ & fHasParent) {

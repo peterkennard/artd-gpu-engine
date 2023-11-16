@@ -16,7 +16,7 @@ class MeshNode
     ObjectPtr<DrawableMesh> mesh_;
     ObjectPtr<Material> material_; // TODO: needs better management for dynamism.
 public:
-
+    MeshNode();
     ~MeshNode();
 
     // load binding area for this node.  TODO: Virtual ? switch TBD

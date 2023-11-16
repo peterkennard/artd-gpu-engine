@@ -828,7 +828,6 @@ GpuEngineImpl::initScene() {
 
             lt = glm::mat4(1.0);
             lt[3] = glm::vec4(trans,1.0);
-            drawables_.push_back(node);  // add to bodgy list of visible drawables
             node->setLocalTransform(lt);
             trans = glm::mat3(drot) * trans;
             
@@ -877,7 +876,6 @@ GpuEngineImpl::initScene() {
             node->setId(maxI + 10);
             node->setMesh(cubeMesh);
             node->setMaterial(pMat);
-            drawables_.push_back(node); // add to bodgy list of visible drawables
             staticTestNode = node;
         }
     }
@@ -1035,7 +1033,7 @@ GpuEngineImpl::renderFrame()  {
             Buffer iBuffer = instanceBuffer_->getBuffer();
             auto offset = instanceBuffer_->getStartOffset();
 
-            int countLeft = (int)drawables_.size();
+            int countLeft = (int)currentScene_->drawables_.size();
             // temp buffer to upload
             const int maxCount = (int)(bufferSize/sizeof(InstanceData));
             int uploadCount = (int)std::min(maxCount,countLeft);
@@ -1045,7 +1043,7 @@ GpuEngineImpl::renderFrame()  {
                 int i = 0;
                 
                 for(; i < uploadCount; ++i) {
-                    drawables_[i]->loadInstanceData(iData[i]);
+                    currentScene_->drawables_[i]->loadInstanceData(iData[i]);
                 }
                 countLeft -= i;
                 // upload a buffer full
@@ -1166,9 +1164,9 @@ GpuEngineImpl::renderFrame()  {
         renderPass.setBindGroup(0, bindGroup, 0, nullptr);
         renderPass.setBindGroup(1, lastMaterialBindings, 0, nullptr); // default texture
 
-        for(size_t i = 0; i < drawables_.size(); ++i) {
+        for(size_t i = 0; i < currentScene_->drawables_.size(); ++i) {
 
-            auto drawable = drawables_[i];
+            auto drawable = currentScene_->drawables_[i];
             Material *matl = drawable->getMaterial().get();
             auto bindings = matl->getBindings();
                         

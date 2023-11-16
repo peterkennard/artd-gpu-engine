@@ -10,6 +10,7 @@ class GpuEngine;
 class LightNode;
 class Material;
 class TimingContext;
+class MeshNode;
 
 class ARTD_API_GPU_ENGINE Scene
 {
@@ -23,8 +24,16 @@ protected:
     typedef SceneNode super;
     
     void tickAnimations(TimingContext &timing);
-
     
+    void removeActiveLight(LightNode *l);
+    void addActiveLight(LightNode *l);
+
+    // TODO: to be grouped by shader/pipeline  Just a hack for now.
+    std::vector<MeshNode*> drawables_;
+
+    void addDrawable(SceneNode *l);
+    void removeDrawable(SceneNode *l);
+
 public:
 
     // scene graph items
@@ -43,6 +52,8 @@ public:
         return(owner_);
     }
 
+    void onNodeAttached(SceneNode *n);
+    void onNodeDetached(SceneNode *n);
 };
 
 INL

@@ -4,8 +4,11 @@
 
 ARTD_BEGIN
 
-MeshNode::~MeshNode() {
+MeshNode::MeshNode() {
+    setFlags(fIsDrawable);
+}
 
+MeshNode::~MeshNode() {
 }
 void
 MeshNode::setMaterial(ObjectPtr<Material> newMat) {

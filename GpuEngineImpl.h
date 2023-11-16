@@ -210,8 +210,6 @@ protected:
 
     ObjectPtr<Viewport> viewport_;
     ObjectPtr<CameraNode> camNode_;
-    // TODO: to be grouped by shader/pipeline  Just a hack for now.
-    std::vector<MeshNode*> drawables_;
 
     GpuEngineImpl();
     ~GpuEngineImpl();
