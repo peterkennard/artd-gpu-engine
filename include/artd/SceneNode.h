@@ -2,6 +2,7 @@
 
 #include "artd/gpu_engine.h"
 #include "artd/Matrix4f.h"
+#include <functional>
 
 #define INL ARTD_ALWAYS_INLINE
 
@@ -48,7 +49,7 @@ protected:
 public:
     virtual ~SceneNode();
 
-    // TODO: have IDs come from a registrar to keep ordered ans searchable
+    // TODO: have IDs come from a registrar to keep ordered and searchable
     INL void setId(int32_t id) {
         id_ = id;
     }
@@ -76,6 +77,10 @@ public:
     }
     Scene *getScene() const;
     GpuEngine *getEngine() const;
+    
+    static const int Inclusive = 0x01;
+    static const int DepthFirst = 0x02;
+    void forAllChildrenInTree(const std::function<bool(SceneNode *)> &doChild, int flags = (DepthFirst | Inclusive));
 };
 
 #undef INL

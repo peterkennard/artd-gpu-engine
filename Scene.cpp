@@ -14,6 +14,10 @@ public:
         clearFlags(fHasTransform | fHasParent);
         setId(-1);
     }
+    void clearParent() {
+        parent_ = nullptr;
+        clearFlags(fHasTransform | fHasParent);
+    }
 };
 
 Scene::Scene(GpuEngine *e)
@@ -25,6 +29,9 @@ Scene::Scene(GpuEngine *e)
 Scene::~Scene()
 {
     lights_.clear();
+    drawables_.clear();
+    
+   // ((SceneRoot *)rootNode_.get())->clearParent(); // prevents onDetach from being called
 }
 
 SceneNode *
@@ -92,7 +99,7 @@ Scene::removeDrawable(SceneNode *l) {
 
 void
 Scene::onNodeAttached(SceneNode *n) {
-    //AD_LOG(print) << "attached " << (void *)n;
+    AD_LOG(print) << "attached " << (void *)n;
     if(n->isDrawable()) {
         addDrawable(n);
     }
@@ -103,7 +110,7 @@ Scene::onNodeAttached(SceneNode *n) {
 
 void
 Scene::onNodeDetached(SceneNode *n) {
-    // AD_LOG(print) << "detached " << (void *)n;
+    AD_LOG(print) << "detached " << (void *)n;
     if(n == nullptr) {
         return;
     }

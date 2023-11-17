@@ -23,6 +23,8 @@ private:
 		return((worldTransformModified_ & 0x01) != 0);
 	}
 
+    friend SceneNode;
+    
 protected:
 	// Children - mostly manipulated by the container classes
 	std::vector< ObjectPtr<SceneNode> > sceneChildren_;

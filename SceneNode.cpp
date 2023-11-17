@@ -6,6 +6,7 @@ SceneNode::~SceneNode() {
     if(hasParent()) {
         parent_->removeChild(this);
     }
+    parent_ = nullptr;
     flags_ = 0;
 }
 
@@ -41,15 +42,21 @@ SceneNode::setParent(TransformNode *parent) {
             newScene = parent->getScene();
         } else {
             clearFlags(fHasParent);
-            parent_ = reinterpret_cast<TransformNode *>(oldScene);
+            parent_ = nullptr;
+//            parent_ = reinterpret_cast<TransformNode *>(oldScene);
         }
         if(oldScene != newScene) {
             if(oldScene) {
-                
-                onDetach(oldScene);
+                forAllChildrenInTree([oldScene](SceneNode *child) {
+                    child->onDetach(oldScene);
+                    return(true);
+                }, (DepthFirst | Inclusive));
             }
             if(newScene) {
-                onAttach(newScene);
+                forAllChildrenInTree([newScene](SceneNode *child) {
+                    child->onAttach(newScene);
+                    return(true);
+                }, (Inclusive));
             }
         }
         return(true);

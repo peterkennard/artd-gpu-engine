@@ -8,12 +8,11 @@ TransformNode::TransformNode() {
 }
 
 TransformNode::~TransformNode() {
+    setParent(nullptr); // will recursively detach all children from scene if attached
     for(auto i = sceneChildren_.size(); i > 0;) {
         --i;
-        clearFlags(fHasChildren);
-        sceneChildren_[i]->setParent(nullptr);
+        sceneChildren_.erase(sceneChildren_.begin() + i);
     }
-    sceneChildren_.clear();
 }
 
 bool
@@ -22,9 +21,8 @@ TransformNode::removeChild(SceneNode *child) {
         for(auto i = sceneChildren_.size(); i > 0;) {
             --i;
             if(sceneChildren_[i].get() == child) {
-                sceneChildren_[i] = nullptr;  // dereference
+                child->setParent(nullptr);    // will detach from scene recursively if attached
                 sceneChildren_.erase(sceneChildren_.begin() + i);
-                child->setParent(nullptr);
                 if(sceneChildren_.size() < 1) {
                     clearFlags(fHasChildren);
                 }
@@ -60,6 +58,24 @@ TransformNode::addChild(ObjectPtr<SceneNode> child) {
         }
     }
     return(child.get());
+}
+
+void
+SceneNode::forAllChildrenInTree(const std::function<bool(SceneNode *child)> &doChild, int flags) {
+    if((flags & (DepthFirst | Inclusive)) == (Inclusive)) {
+        doChild(this);
+    }
+    if(hasChildren()) {
+        TransformNode *tNode ((TransformNode *)this);
+        for(auto i = tNode->sceneChildren_.size(); i > 0;) {
+            --i;
+            SceneNode &child = *(tNode->sceneChildren_[i]);
+            child.forAllChildrenInTree(doChild, flags | Inclusive);
+        }
+    }
+    if((flags & (DepthFirst | Inclusive)) == (DepthFirst | Inclusive)) {
+        doChild(this);
+    }
 }
 
 

@@ -749,14 +749,6 @@ GpuEngineImpl::initScene() {
             pMat->setId((int)(materials_.size() - 1));
         }
 
-        textureManager_->loadTexture("test0", [](ObjectPtr<Texture> loaded){
-            AD_LOG(print) << "Texture:  " << loaded->getName() << " loaded";
-        });
-        
-        textureManager_->loadTexture(RcString("default"), [](ObjectPtr<Texture> loaded){
-            AD_LOG(info) << loaded;
-        });
-        
         // create two meshes cube and cone
 
         std::vector<float> pointData;
