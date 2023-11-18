@@ -1,5 +1,7 @@
 #pragma once
 #include "artd/TransformNode.h"
+#include "artd/TimingContext.h"
+#include <functional>
 
 ARTD_BEGIN
 
@@ -11,6 +13,53 @@ class LightNode;
 class Material;
 class TimingContext;
 class MeshNode;
+class AnimationTaskList;
+
+class AnimationTaskContext
+{
+    SceneNode *owner_;
+    friend AnimationTaskList;
+protected:
+    TimingContext timing_;
+    INL void setTiming(TimingContext &t) {
+        timing_ = t;
+    }
+public:
+    INL const TimingContext &timing() const {
+        return(timing_);
+    }
+    INL SceneNode *owner() {
+        return(owner_);
+    }
+};
+
+
+//
+//class ARTD_API_GPU_ENGINE AnimationTask
+//{
+//public:
+////    enum When {
+////        /// tick task before input events dispatched. ( post render )
+////        TICK_PRE_DISPATCH = 0,
+////        /// tick task before after input events dispatched. and before scene update.
+////        TICK_POST_DISPATCH = 1,
+////        TICK_PRE_UPDATE = TICK_POST_DISPATCH,
+////        /// tick task after after scene update and before render.
+////        TICK_POST_UPDATE = 2,
+////        TICK_PRE_RENDER = TICK_POST_UPDATE,
+////        /// convenience name - this is a LOOP !!!
+////        TICK_POST_RENDER = TICK_PRE_DISPATCH
+////    };
+//
+//    virtual ~AnimationTask() {}
+//    virtual bool onAnimationTick(AnimationTaskContext &c) = 0;
+//};
+
+typedef std::function<bool(AnimationTaskContext &c)> AnimationFunction;
+
+
+
+class AnimationTaskList;
 
 class ARTD_API_GPU_ENGINE Scene
 {
@@ -18,7 +67,8 @@ class ARTD_API_GPU_ENGINE Scene
     friend class GpuEngineImpl;
     
     ObjectPtr<TransformNode> rootNode_;
-    
+    ObjectPtr<AnimationTaskList> animationTasks_;
+
 protected:
     GpuEngineImpl *getOwner();
     typedef SceneNode super;
@@ -54,6 +104,8 @@ public:
 
     void onNodeAttached(SceneNode *n);
     void onNodeDetached(SceneNode *n);
+
+    void addAnimationTask(SceneNode *owner, AnimationFunction f);
 };
 
 INL

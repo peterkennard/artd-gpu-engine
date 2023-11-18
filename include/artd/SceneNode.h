@@ -2,6 +2,7 @@
 
 #include "artd/gpu_engine.h"
 #include "artd/Matrix4f.h"
+#include "artd/TypedPropertyMap.h"
 #include <functional>
 
 #define INL ARTD_ALWAYS_INLINE
@@ -27,6 +28,8 @@ protected:
     TransformNode *parent_ = nullptr;
     int32_t flags_ = 0;
     int32_t id_ = -1;
+    TypedPropertyMap properties_;
+
 
     bool setParent(TransformNode *parent);
 
@@ -45,8 +48,13 @@ protected:
     void attachAllChildren(Scene *s);
     void detachAllChildren(Scene *s);
 
-
 public:
+
+    template<class T>
+    INL TypedPropertyKey<T> registerPropertyKey(StringArg name) {
+        return(TypedPropertyKey<T>(name));
+    }
+
     virtual ~SceneNode();
 
     // TODO: have IDs come from a registrar to keep ordered and searchable

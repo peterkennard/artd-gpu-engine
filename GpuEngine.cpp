@@ -868,6 +868,14 @@ GpuEngineImpl::initScene() {
             node->setId(maxI + 10);
             node->setMesh(cubeMesh);
             node->setMaterial(pMat);
+
+            currentScene_->addAnimationTask(node, [](AnimationTaskContext &tc) {
+                if(tc.timing().isDebugFrame()) {
+                    AD_LOG(print) << "In Tick";
+                }
+                return(true);
+            });
+
             staticTestNode = node;
         }
     }
@@ -981,10 +989,6 @@ GpuEngineImpl::renderFrame()  {
         lt[2] = rot[2];
 
         currentScene_->lights_[0]->setLocalTransform(lt);
-        
-        rot = glm::rotate(rot, angle*2.5f, glm::normalize(glm::vec3(0,1.0,1.0)));
-        
-        staticTestNode->setLocalTransform(rot);
     }
 
     {

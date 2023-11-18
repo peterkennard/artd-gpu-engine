@@ -1,9 +1,14 @@
 #include "./GpuEngineImpl.h"
 #include "artd/Scene.h"
 #include "artd/LightNode.h"
+#include "artd/Mutex.h"
+
 #include "./MeshNode.h"
 
+
 ARTD_BEGIN
+
+#define INL ARTD_ALWAYS_INLINE
 
 class SceneRoot
     : public TransformNode
@@ -20,10 +25,129 @@ public:
     }
 };
 
+
+class OwnedAnimList {
+public:
+    ~OwnedAnimList() {
+        AD_LOG(info) << "######## destroy owned AnimList";
+    }
+};
+
+
+class AnimationTaskList
+{
+public:
+    
+    class TaskEntry
+        : public DlNode
+    {
+    public:
+        TaskEntry(AnimationFunction f, SceneNode *owner)
+            : task_(f)
+            , owner_(owner)
+        {}
+        ~TaskEntry() {
+        }
+        AnimationFunction task_;
+        SceneNode *owner_;
+        
+        INL bool tick(AnimationTaskContext &tc) {
+            tc.timing().isDebugFrame();
+            return(task_(tc));
+        }
+    };
+
+    class TaskList
+        : public IntrusiveList<TaskEntry,TaskList>
+    {
+    public:
+        ~TaskList() {
+        }
+
+        void onAttach(TaskEntry *te) {
+            AD_LOG(print) << "attaching " << (void *)te;
+        }
+
+        void onDetach(TaskEntry *te) {
+//            AD_LOG(print) << "detaching " << (void *)te;
+            delete(te);
+        }
+
+    };
+
+    TaskList list_;
+    Mutex listLock_;
+    
+    void tickAnimations(TimingContext &timing) {
+        
+        AnimationTaskContext context;
+        context.setTiming(timing);
+                
+        TaskList toRun;
+        {
+        synchronized(listLock_);
+            toRun.appendFrom(list_);
+            if (toRun.empty()) {
+                return;
+            }
+        }
+        
+        try {
+            TaskList doneWith;
+
+            for(auto it = toRun.begin(); it != toRun.end(); ++it) {
+                TaskEntry &task = *it;
+                auto ret = task.tick(context);
+                if(!ret) {
+                    it.remove();
+                }
+            }
+
+            // release all the executed events inside a list lock
+            // schedule all the do-again events to be executed again.
+            {
+            synchronized(listLock_)
+                list_.appendFrom(toRun); // add to end of list if anything was added to it it stays there
+            }
+        }
+        catch (...) {
+        }
+    }
+    
+    void addTask(SceneNode *owner, AnimationFunction task) {
+        list_.addHead(new TaskEntry(task,owner));
+    }
+    
+//    void test() {
+//
+//        TaskList test1;
+//
+//        for(int i = 0; i < 10; ++i) {
+//            TaskEntry *te = new TaskEntry();
+//            test1.addTail(te);
+//        }
+//
+//        int i = 0;
+//        for(auto it = test1.begin(); it != test1.end(); ++it) {
+//            ++i;
+//           // TaskEntry &task = *it;
+//            if(i >= 5) {
+//                it.remove();
+//            }
+//        }
+//        test1.clear();
+//    }
+
+};
+
+
 Scene::Scene(GpuEngine *e)
     : owner_(e)
 {
     rootNode_ = ObjectBase::make<SceneRoot>(this);
+    animationTasks_ = ObjectBase::make<AnimationTaskList>();
+    
+//    animationTasks_->test();
 }
 
 Scene::~Scene()
@@ -51,7 +175,7 @@ Scene::removeChild(SceneNode *child) {
 
 void
 Scene::tickAnimations(TimingContext &timing) {
-    timing.isDebugFrame();
+    animationTasks_->tickAnimations(timing);
 }
 
 void
@@ -120,6 +244,10 @@ Scene::onNodeDetached(SceneNode *n) {
     else if(dynamic_cast<LightNode*>(n)) {
         removeActiveLight((LightNode *)n);
     }
+}
+
+void Scene::addAnimationTask(SceneNode *owner, AnimationFunction task) {
+    animationTasks_->addTask(owner, task);
 }
 
 
