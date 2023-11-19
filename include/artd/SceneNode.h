@@ -63,7 +63,22 @@ public:
     INL T *getProperty(TypedPropertyKey<T> key) {
         return(properties_.getProperty(key));
     }
-    
+
+    template<class T>
+    INL void setProperty(TypedPropertyKey<T> key, T &&prop) {
+        return(properties_.setProperty<T>(key, std::move(prop)));
+    }
+
+    template<class T>
+    INL void setProperty(TypedPropertyKey<T> key, const T &prop) {
+        return(properties_.setProperty<T>(key, prop));
+    }
+
+    template<class T>
+    INL void setProperty(TypedPropertyKey<T> key, ObjectPtr<T> &prop) {
+        return(properties_.setSharedProperty<T>(key, prop));
+    }
+
     virtual ~SceneNode();
 
     // TODO: have IDs come from a registrar to keep ordered and searchable

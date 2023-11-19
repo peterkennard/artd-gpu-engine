@@ -56,7 +56,7 @@ public:
                 if(list) {
                     list->addTaskEntry(this);
                 } else {
-                    owner->properties().setPodProperty(OwnedEntriesKey, OwnedEntryList(this));
+                    owner->setProperty(OwnedEntriesKey, OwnedEntryList(this));
                 }
             }
         }
