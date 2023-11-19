@@ -59,6 +59,11 @@ public:
         return(TypedPropertyKey<T>(name));
     }
 
+    template<class T>
+    INL T *getProperty(TypedPropertyKey<T> key) {
+        return(properties_.getProperty(key));
+    }
+    
     virtual ~SceneNode();
 
     // TODO: have IDs come from a registrar to keep ordered and searchable

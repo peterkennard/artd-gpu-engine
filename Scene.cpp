@@ -52,17 +52,20 @@ public:
             , owner_(owner)
         {
             if(owner) {
-                if(!owner->properties().hasProperty(OwnedEntriesKey)) {
-                    owner->properties().setPodProperty(OwnedEntriesKey, OwnedEntryList());
+                OwnedEntryList *list = owner->getProperty(OwnedEntriesKey);
+                if(list) {
+                    list->addTaskEntry(this);
+                } else {
+                    owner->properties().setPodProperty(OwnedEntriesKey, OwnedEntryList(this));
                 }
             }
-            
         }
         ~TaskEntry() {
         }
         AnimationFunction task_;
         SceneNode *owner_;
-        
+        TaskEntry *nextOwned_ = nullptr;
+
         INL bool tick(AnimationTaskContext &tc) {
             tc.timing().isDebugFrame();
             return(task_(tc));
@@ -72,17 +75,30 @@ public:
     class OwnedEntryList {
     public:
         TaskEntry *list_ = nullptr;
-        OwnedEntryList()
+        OwnedEntryList(TaskEntry *list)
+            : list_(list)
         {
+        }
+        // NOTE: we only will add the first one if there is a chain.
+        void addTaskEntry(TaskEntry *entry) {
+            entry->nextOwned_ = list_;
+            list_ = entry;
         }
         OwnedEntryList(OwnedEntryList &&from)
             : list_(from.list_)
         {
             from.list_ = nullptr;
         }
+        int size() {
+            int sz = 0;
+            for(auto entry = list_; entry != nullptr; entry = entry->nextOwned_) {
+                ++sz;
+            }
+            return(sz);
+        }
         ~OwnedEntryList() {
             if(list_) {
-                AD_LOG(print) << "destroying loaded OwnedEntryList";
+                AD_LOG(print) << "destroying OwnedEntryList of: " << size();
             }
         }
     };
