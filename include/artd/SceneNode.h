@@ -50,6 +50,10 @@ protected:
 
 public:
 
+    TypedPropertyMap &properties() {
+        return(properties_);
+    }
+
     template<class T>
     INL TypedPropertyKey<T> registerPropertyKey(StringArg name) {
         return(TypedPropertyKey<T>(name));

@@ -38,14 +38,26 @@ class AnimationTaskList
 {
 public:
     
+    class OwnedEntryList;
+    
+    static const TypedPropertyKey<OwnedEntryList>  OwnedEntriesKey;
+
     class TaskEntry
         : public DlNode
     {
     public:
+        
         TaskEntry(AnimationFunction f, SceneNode *owner)
             : task_(f)
             , owner_(owner)
-        {}
+        {
+            if(owner) {
+                if(!owner->properties().hasProperty(OwnedEntriesKey)) {
+                    owner->properties().setPodProperty(OwnedEntriesKey, OwnedEntryList());
+                }
+            }
+            
+        }
         ~TaskEntry() {
         }
         AnimationFunction task_;
@@ -54,6 +66,24 @@ public:
         INL bool tick(AnimationTaskContext &tc) {
             tc.timing().isDebugFrame();
             return(task_(tc));
+        }
+    };
+
+    class OwnedEntryList {
+    public:
+        TaskEntry *list_ = nullptr;
+        OwnedEntryList()
+        {
+        }
+        OwnedEntryList(OwnedEntryList &&from)
+            : list_(from.list_)
+        {
+            from.list_ = nullptr;
+        }
+        ~OwnedEntryList() {
+            if(list_) {
+                AD_LOG(print) << "destroying loaded OwnedEntryList";
+            }
         }
     };
 
@@ -139,6 +169,8 @@ public:
 //    }
 
 };
+
+const TypedPropertyKey<AnimationTaskList::OwnedEntryList>  AnimationTaskList::OwnedEntriesKey("AnimationTaskList::OwnedEntriesKey");
 
 
 Scene::Scene(GpuEngine *e)
