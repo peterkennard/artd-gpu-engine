@@ -61,6 +61,18 @@ public:
             }
         }
         ~TaskEntry() {
+            if(owner_) {
+                OwnedEntryList *list = owner_->getProperty(OwnedEntriesKey);
+                if(list) {
+                    list->onEntryDestroy(this);
+                }
+            }
+        }
+        void onOwnerDestroyed() {
+            owner_ = nullptr;
+            if(!detached()) {
+                detach();
+            }
         }
         AnimationFunction task_;
         SceneNode *owner_;
@@ -72,6 +84,8 @@ public:
         }
     };
 
+    // TODO: maybe use the doubly linked list !!
+    // maybe needs a more general implementation
     class OwnedEntryList {
     public:
         TaskEntry *list_ = nullptr;
@@ -83,6 +97,20 @@ public:
         void addTaskEntry(TaskEntry *entry) {
             entry->nextOwned_ = list_;
             list_ = entry;
+        }
+        void removeEntry(TaskEntry *toRemove) {
+            TaskEntry **pPrior = &list_;
+            for(auto entry = list_; entry != nullptr; entry = entry->nextOwned_) {
+                if(entry == toRemove) {
+                    *pPrior = destroying->nextOwned_;
+                    break;
+                }
+                pPrior = &entry->nextOwned_;
+            }
+        }
+        
+        void onEntryDestroy(TaskEntry *destroying) {
+            removeEntry(destroying);
         }
         OwnedEntryList(OwnedEntryList &&from)
             : list_(from.list_)
@@ -97,6 +125,11 @@ public:
             return(sz);
         }
         ~OwnedEntryList() {
+            while(list_) {
+                auto entry = list_;
+                list_ = entry->nextOwned_;
+                entry->onOwnerDestroyed();
+            }
             if(list_) {
                 AD_LOG(print) << "destroying OwnedEntryList of: " << size();
             }
