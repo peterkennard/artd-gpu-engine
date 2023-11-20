@@ -102,7 +102,7 @@ public:
             TaskEntry **pPrior = &list_;
             for(auto entry = list_; entry != nullptr; entry = entry->nextOwned_) {
                 if(entry == toRemove) {
-                    *pPrior = destroying->nextOwned_;
+                    *pPrior = toRemove->nextOwned_;
                     break;
                 }
                 pPrior = &entry->nextOwned_;
