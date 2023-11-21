@@ -47,8 +47,22 @@ public:
     {
     public:
         
-        TaskEntry(AnimationFunction f, SceneNode *owner)
-            : task_(f)
+//        TaskEntry(AnimationFunction f, SceneNode *owner)
+//            : task_(f)
+//            , owner_(owner)
+//        {
+//            if(owner) {
+//                OwnedEntryList *list = owner->getProperty(OwnedEntriesKey);
+//                if(list) {
+//                    list->addTaskEntry(this);
+//                } else {
+//                    owner->setProperty(OwnedEntriesKey, OwnedEntryList(this));
+//                }
+//            }
+//        }
+
+        TaskEntry(ObjectPtr<AnimationTask> task, SceneNode *owner)
+            : task_(task)
             , owner_(owner)
         {
             if(owner) {
@@ -74,13 +88,13 @@ public:
                 detach();
             }
         }
-        AnimationFunction task_;
+        ObjectPtr<AnimationTask> task_;
         SceneNode *owner_;
         TaskEntry *nextOwned_ = nullptr;
 
         INL bool tick(AnimationTaskContext &tc) {
-            tc.timing().isDebugFrame();
-            return(task_(tc));
+            tc.owner_ = owner_;
+            return(task_->onAnimationTick(tc));
         }
     };
 
@@ -143,8 +157,8 @@ public:
         ~TaskList() {
         }
 
-        void onAttach(TaskEntry *te) {
-            AD_LOG(print) << "attaching " << (void *)te;
+        void onAttach(TaskEntry */*te*/) {
+//            AD_LOG(print) << "attaching " << (void *)te;
         }
 
         void onDetach(TaskEntry *te) {
@@ -193,7 +207,10 @@ public:
         }
     }
     
-    void addTask(SceneNode *owner, AnimationFunction task) {
+//    void addTask(SceneNode *owner, AnimationFunction task) {
+//        list_.addHead(new TaskEntry(task,owner));
+//    }
+    void addTask(SceneNode *owner, ObjectPtr<AnimationTask> task) {
         list_.addHead(new TaskEntry(task,owner));
     }
 };
@@ -306,7 +323,10 @@ Scene::onNodeDetached(SceneNode *n) {
     }
 }
 
-void Scene::addAnimationTask(SceneNode *owner, AnimationFunction task) {
+//void Scene::addAnimationTask(SceneNode *owner, AnimationFunction task) {
+//    animationTasks_->addTask(owner, task);
+//}
+void Scene::addAnimationTask(SceneNode *owner, ObjectPtr<AnimationTask> task) {
     animationTasks_->addTask(owner, task);
 }
 

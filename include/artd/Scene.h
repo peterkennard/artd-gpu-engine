@@ -34,30 +34,26 @@ public:
 };
 
 
-//
-//class ARTD_API_GPU_ENGINE AnimationTask
-//{
-//public:
-////    enum When {
-////        /// tick task before input events dispatched. ( post render )
-////        TICK_PRE_DISPATCH = 0,
-////        /// tick task before after input events dispatched. and before scene update.
-////        TICK_POST_DISPATCH = 1,
-////        TICK_PRE_UPDATE = TICK_POST_DISPATCH,
-////        /// tick task after after scene update and before render.
-////        TICK_POST_UPDATE = 2,
-////        TICK_PRE_RENDER = TICK_POST_UPDATE,
-////        /// convenience name - this is a LOOP !!!
-////        TICK_POST_RENDER = TICK_PRE_DISPATCH
-////    };
-//
-//    virtual ~AnimationTask() {}
-//    virtual bool onAnimationTick(AnimationTaskContext &c) = 0;
-//};
 
-typedef std::function<bool(AnimationTaskContext &c)> AnimationFunction;
+class ARTD_API_GPU_ENGINE AnimationTask
+{
+public:
+//    enum When {
+//        /// tick task before input events dispatched. ( post render )
+//        TICK_PRE_DISPATCH = 0,
+//        /// tick task before after input events dispatched. and before scene update.
+//        TICK_POST_DISPATCH = 1,
+//        TICK_PRE_UPDATE = TICK_POST_DISPATCH,
+//        /// tick task after after scene update and before render.
+//        TICK_POST_UPDATE = 2,
+//        TICK_PRE_RENDER = TICK_POST_UPDATE,
+//        /// convenience name - this is a LOOP !!!
+//        TICK_POST_RENDER = TICK_PRE_DISPATCH
+//    };
 
-
+    virtual ~AnimationTask() {}
+    virtual bool onAnimationTick(AnimationTaskContext &c) = 0;
+};
 
 class AnimationTaskList;
 
@@ -105,7 +101,8 @@ public:
     void onNodeAttached(SceneNode *n);
     void onNodeDetached(SceneNode *n);
 
-    void addAnimationTask(SceneNode *owner, AnimationFunction f);
+    //    void addAnimationTask(SceneNode *owner, AnimationFunction f);
+    void addAnimationTask(SceneNode *owner, ObjectPtr<AnimationTask> task);
 };
 
 INL

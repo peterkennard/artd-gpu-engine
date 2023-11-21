@@ -694,8 +694,6 @@ GpuEngineImpl::createMaterialBindGroup(Material &forM) {
 }
 
 
-static MeshNode *staticTestNode;
-
 // TODO: load from some description or have something "initialize" it and set it.
 int
 GpuEngineImpl::initScene() {
@@ -807,6 +805,38 @@ GpuEngineImpl::initScene() {
             light->setDiffuse(Color3f(1.f,1.f,1.f));
             light->setAreaWrap(.25);
             currentScene_->addChild(light);
+
+            // this rotates the light direction around the center of ths scene
+            class AnimTask
+                : public AnimationTask
+            {
+            public:
+                bool onAnimationTick(AnimationTaskContext &ac) override {
+
+                    TransformNode *owner = (TransformNode *)ac.owner();
+
+                    // Matrix4f lt = ringGroup_->getLocalTransform();
+                    Matrix4f lt = owner->getLocalTransform();
+
+                    Matrix4f rot;
+                    angle += ac.timing().lastFrameDt() * .2;
+                    if( angle > (glm::pi<float>()*2)) {
+                        angle -= (glm::pi<float>()*2);
+                    }
+
+                    rot = glm::rotate(rot, -angle, glm::vec3(0,1.0,0));
+                    lt[0] = rot[0];
+                    lt[1] = rot[1];
+                    lt[2] = rot[2];
+
+                    owner->setLocalTransform(lt);
+
+                    return(true);
+
+                }
+                float angle = 0.0;
+            };
+            currentScene_->addAnimationTask(light.get(), ObjectPtr<AnimTask>::make());
         }
         
         // layout some objects in a ring around the ringGroup_ node
@@ -869,14 +899,34 @@ GpuEngineImpl::initScene() {
             node->setMesh(cubeMesh);
             node->setMaterial(pMat);
 
-            currentScene_->addAnimationTask(node, [](AnimationTaskContext &tc) {
-                if(tc.timing().isDebugFrame()) {
-                    AD_LOG(print) << "In Tick";
-                }
-                return(true);
-            });
+            {
+                class AnimTask
+                    : public AnimationTask
+                {
+                public:
+                    bool onAnimationTick(AnimationTaskContext &ac) override {
+                        
+                        TransformNode *owner = (TransformNode *)ac.owner();
+                    
+                        Matrix4f rot;
+                        angle += ac.timing().lastFrameDt() * .1;
+                        if( angle > (glm::pi<float>()*2)) {
+                            angle -= (glm::pi<float>()*2);
+                        }
+                        
+                        rot = glm::rotate(rot, angle, glm::vec3(0,1.0,0));
+                        rot = glm::rotate(rot, angle*2.5f, glm::normalize(glm::vec3(0,1.0,1.0)));
+                                
+                        owner->setLocalTransform(rot);
 
-            staticTestNode = node;
+                        return(true);
+
+                    }
+                    float angle = 0.0;
+                };
+                
+                currentScene_->addAnimationTask(node, ObjectPtr<AnimTask>::make());
+            }
         }
     }
 
@@ -967,28 +1017,6 @@ GpuEngineImpl::renderFrame()  {
 
     if(!instance) {
         return(-1);
-    }
-
-    // This is here so we have some animation for updating the secne graph test :)
-    // we need animation tasks
-    if(!freezeAnimation_) {
-        static float angle = 0; // bodge for test
-        
-        // Matrix4f lt = ringGroup_->getLocalTransform();
-        Matrix4f lt = currentScene_->lights_[0]->getLocalTransform();
-
-        Matrix4f rot;
-        angle += timing_.lastFrameDt() * .2;
-        if( angle > (glm::pi<float>()*2)) {
-            angle -= (glm::pi<float>()*2);
-        }
-        
-        rot = glm::rotate(rot, -angle, glm::vec3(0,1.0,0));
-        lt[0] = rot[0];
-        lt[1] = rot[1];
-        lt[2] = rot[2];
-
-        currentScene_->lights_[0]->setLocalTransform(lt);
     }
 
     {
