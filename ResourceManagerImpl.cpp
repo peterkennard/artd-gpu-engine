@@ -41,7 +41,7 @@ ResourceManagerImpl::shutdown() {
 
 ObjectPtr<ResourceManager>
 ResourceManager::create()  {
-    return(ObjectBase::make<ResourceManagerImpl>());
+    return(ObjectPtr<ResourceManagerImpl>::make());
 }
 
 #ifdef __EMSCRIPTEN__

@@ -453,7 +453,7 @@ public:
 
         ObjectPtr<BufferChunk> retBc = hBc;
         if(retBc == nullptr) {
-            retBc = ObjectBase::make<BufferChunkImpl>();
+            retBc = ObjectPtr<BufferChunkImpl>::make();
         }
         
         BufferChunkImpl *bd = static_cast<BufferChunkImpl*>(retBc.get());
@@ -572,7 +572,7 @@ GpuBufferManager::~GpuBufferManager() {
 
 ObjectPtr<GpuBufferManager>
 GpuBufferManager::create(GpuEngineImpl *owner) {
-    return( ObjectBase::make<GpuBufferManagerImpl>(owner));
+    return( ObjectPtr<GpuBufferManagerImpl>::make(owner));
 }
 
 

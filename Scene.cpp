@@ -196,27 +196,6 @@ public:
     void addTask(SceneNode *owner, AnimationFunction task) {
         list_.addHead(new TaskEntry(task,owner));
     }
-    
-//    void test() {
-//
-//        TaskList test1;
-//
-//        for(int i = 0; i < 10; ++i) {
-//            TaskEntry *te = new TaskEntry();
-//            test1.addTail(te);
-//        }
-//
-//        int i = 0;
-//        for(auto it = test1.begin(); it != test1.end(); ++it) {
-//            ++i;
-//           // TaskEntry &task = *it;
-//            if(i >= 5) {
-//                it.remove();
-//            }
-//        }
-//        test1.clear();
-//    }
-
 };
 
 const TypedPropertyKey<AnimationTaskList::OwnedEntryList>  AnimationTaskList::OwnedEntriesKey("AnimationTaskList::OwnedEntriesKey");
@@ -225,8 +204,8 @@ const TypedPropertyKey<AnimationTaskList::OwnedEntryList>  AnimationTaskList::Ow
 Scene::Scene(GpuEngine *e)
     : owner_(e)
 {
-    rootNode_ = ObjectBase::make<SceneRoot>(this);
-    animationTasks_ = ObjectBase::make<AnimationTaskList>();
+    rootNode_ = ObjectPtr<SceneRoot>::make(this);
+    animationTasks_ = ObjectPtr<AnimationTaskList>::make();
     
 //    animationTasks_->test();
 }

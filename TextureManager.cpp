@@ -134,7 +134,7 @@ class TextureManagerImpl
         uint32_t width = 1;
         uint32_t height = 1;
 
-        ObjectPtr<CachedTexture> tex = ObjectBase::make<CachedTexture>();
+        ObjectPtr<CachedTexture> tex = ObjectPtr<CachedTexture>::make();
 
 
         TextureDescriptor tDesc;
@@ -168,7 +168,7 @@ class TextureManagerImpl
 
         using namespace wgpu;
 
-        ObjectPtr<CachedTexture> tex = ObjectBase::make<CachedTexture>();
+        ObjectPtr<CachedTexture> tex = ObjectPtr<CachedTexture>::make();
 
         // todo: pick best size.
         uint32_t width = 0x40;  // 64
@@ -259,7 +259,7 @@ class TextureManagerImpl
         } else {
             // TODO: error handling ?
             auto view = tex->tex_.createView(tvd);
-            ret = ObjectBase::make<CachedTextureView>(this,tex,view);
+            ret = ObjectPtr<CachedTextureView>::make(this,tex,view);
             auto inserted = cachedViews_.insert(VMapT::value_type(key, WeakPtr<CachedTextureView>(ret)));
             VMapT::iterator it = inserted.first;
             ret->pKey = &(it->first);  // actuall address of key in map no-reallocs
@@ -377,7 +377,7 @@ public:
 };
 
 ObjectPtr<TextureManager> TextureManager::create(GpuEngineImpl *owner) {
-    return(ObjectBase::make<TextureManagerImpl>(owner));
+    return(ObjectPtr<TextureManagerImpl>::make(owner));
 }
 
 

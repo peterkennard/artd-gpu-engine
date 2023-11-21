@@ -103,11 +103,11 @@ GpuEngineImpl::initGlfwDisplay() {
 GpuEngineImpl::GpuEngineImpl()
 {
     bufferManager_ = GpuBufferManager::create(this);
-    viewport_ = ObjectBase::make<Viewport>();
-    camNode_ = ObjectBase::make<CameraNode>();
+    viewport_ = ObjectPtr<Viewport>::make();
+    camNode_ = ObjectPtr<CameraNode>::make();
     auto cam = ObjectBase::make<Camera>();
     camNode_->setCamera(cam);
-    meshLoader_ = ObjectBase::make<CachedMeshLoader>();
+    meshLoader_ = ObjectPtr<CachedMeshLoader>::make();
     cam->setViewport(viewport_);
     // TODO: we need a scene
     std::memset(&uniforms,0,sizeof(uniforms));
@@ -276,10 +276,10 @@ int
 GpuEngineImpl::init(bool headless, int width, int height) {
 
     {
-        auto eventPool = ObjectBase::make<LambdaEventQueue::LambdaEventPool>();
+        auto eventPool = ObjectPtr<LambdaEventQueue::LambdaEventPool>::make();
  
-        inputQueue_ = ObjectBase::make<LambdaEventQueue>(eventPool);
-        updateQueue_ = ObjectBase::make<LambdaEventQueue>(eventPool);
+        inputQueue_ = ObjectPtr<LambdaEventQueue>::make(eventPool);
+        updateQueue_ = ObjectPtr<LambdaEventQueue>::make(eventPool);
     }
     
     
@@ -311,7 +311,7 @@ GpuEngineImpl::init(bool headless, int width, int height) {
         return 1;
     }
 
-    inputManager_ = ObjectBase::make<InputManager>(this);
+    inputManager_ = ObjectPtr<InputManager>::make(this);
     
     if(headless_) {
         surface = nullptr;  // done in constructor
@@ -375,7 +375,7 @@ GpuEngineImpl::init(bool headless, int width, int height) {
     });
 
     
-    shaderManager_ = ObjectBase::make<ShaderManager>(device);
+    shaderManager_ = ObjectPtr<ShaderManager>::make(device);
     resourceManager_ = ResourceManager::create();
     textureManager_ = TextureManager::create(this);
 
@@ -389,7 +389,7 @@ GpuEngineImpl::init(bool headless, int width, int height) {
         return(ret);
     }
     
-    pickerPass_ = ObjectBase::make<PickerPass>(this);
+    pickerPass_ = ObjectPtr<PickerPass>::make(this);
     
     AD_LOG(info) << "Creating shader module...";
     shaderModule = shaderManager_->loadShaderModule("testShader1.wgsl");
@@ -651,14 +651,14 @@ GpuEngineImpl::init(bool headless, int width, int height) {
     // this is only for main window
 
     if(headless_) {
-        pixelGetter_ = artd::ObjectBase::make<PixelReader>(device, width_,height_);
+        pixelGetter_ = artd::ObjectPtr<PixelReader>::make(device, width_,height_);
         pixelUnLockLock_.signal(); // start enabled !!
     }
 
     // create defaultMaterial
     materials_.clear();
     {
-        materials_.push_back(ObjectBase::make<Material>(this));
+        materials_.push_back(ObjectPtr<Material>::make(this));
         defaultMaterial_ = materials_[materials_.size()-1];
         auto pMat = defaultMaterial_.get();
         pMat->setDiffuse(Color3f(30,30,30));
@@ -706,8 +706,8 @@ GpuEngineImpl::initScene() {
         device.tick();
 #endif
 
-    currentScene_ = ObjectBase::make<Scene>(this);
-    ObjectPtr<TransformNode> ringGroup = ObjectBase::make<TransformNode>();
+    currentScene_ = ObjectPtr<Scene>::make(this);
+    ObjectPtr<TransformNode> ringGroup = ObjectPtr<TransformNode>::make();
     currentScene_->addChild(ringGroup);
     
     // setup camera
@@ -743,7 +743,7 @@ GpuEngineImpl::initScene() {
         };
 
         for(int i = 0; i < (int)ARTD_ARRAY_LENGTH(colors); ++i) {
-            materials_.push_back(ObjectBase::make<Material>(this));
+            materials_.push_back(ObjectPtr<Material>::make(this));
             auto pMat = materials_[materials_.size()-1].get();
             pMat->setDiffuse(colors[i]);
             pMat->setId((int)(materials_.size() - 1));
@@ -762,7 +762,7 @@ GpuEngineImpl::initScene() {
     		return 1;
     	}
 
-        coneMesh = ObjectBase::make<DrawableMesh>();
+        coneMesh = ObjectPtr<DrawableMesh>::make();
         coneMesh->indexCount_ = (int)indexData.size();
         coneMesh->iChunk_ = bufferManager_->allocIndexChunk((int)indexData.size(), (const uint16_t *)(indexData.data()));
         coneMesh->vChunk_ = bufferManager_->allocVertexChunk((int)pointData.size(), pointData.data());
@@ -776,7 +776,7 @@ GpuEngineImpl::initScene() {
 
         success = meshLoader_->loadGeometry("sphere", pointData, indexData, 6 /* dimensions */);
 
-        cubeMesh = ObjectBase::make<DrawableMesh>();
+        cubeMesh = ObjectPtr<DrawableMesh>::make();
         cubeMesh->indexCount_ = (int)indexData.size();
         cubeMesh->iChunk_ = bufferManager_->allocIndexChunk((int)indexData.size(), (const uint16_t *)(indexData.data()));
         cubeMesh->vChunk_ = bufferManager_->allocVertexChunk((int)pointData.size(), pointData.data());
@@ -801,7 +801,7 @@ GpuEngineImpl::initScene() {
         // Create some lights
         
         {
-            ObjectPtr<LightNode> light = ObjectBase::make<LightNode>();
+            ObjectPtr<LightNode> light = ObjectPtr<LightNode>::make();
             light->setLightType(LightNode::directional);
             light->setDirection(Vec3f(0.5, .5, 0.1));
             light->setDiffuse(Color3f(1.f,1.f,1.f));
@@ -815,7 +815,7 @@ GpuEngineImpl::initScene() {
         uint32_t maxI = 13;
         for(uint32_t i = 1; i < maxI; ++i)  {
         
-            MeshNode *node = (MeshNode *)ringGroup->addChild(ObjectBase::make<MeshNode>());
+            MeshNode *node = (MeshNode *)ringGroup->addChild(ObjectPtr<MeshNode>::make());
             node->setId(i + 10);
 
             lt = glm::mat4(1.0);
@@ -843,7 +843,7 @@ GpuEngineImpl::initScene() {
             return 1;
         }
 
-        cubeMesh = ObjectBase::make<DrawableMesh>();
+        cubeMesh = ObjectPtr<DrawableMesh>::make();
         cubeMesh->indexCount_ = (int)indexData.size();
         
         cubeMesh->iChunk_ = bufferManager_->allocIndexChunk((int)indexData.size(), (const uint16_t *)(indexData.data()));
@@ -863,7 +863,7 @@ GpuEngineImpl::initScene() {
             });
             
             lt = glm::mat4(1.0);
-            MeshNode *node = (MeshNode *)ringGroup->addChild(ObjectBase::make<MeshNode>());
+            MeshNode *node = (MeshNode *)ringGroup->addChild(ObjectPtr<MeshNode>::make());
             node->setLocalTransform(lt);
             node->setId(maxI + 10);
             node->setMesh(cubeMesh);
@@ -1347,8 +1347,8 @@ extern "C" {
         ObjectPtr<Thread> thread;
 
         if(headless) {
-            receiver = ObjectBase::make<ImageReceiver>();
-            thread = ObjectBase::make<Thread>(receiver);
+            receiver = ObjectPtr<ImageReceiver>::make();
+            thread = ObjectPtr<Thread>::make(receiver);
             thread->start();
         }
         
