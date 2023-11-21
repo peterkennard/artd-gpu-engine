@@ -698,12 +698,6 @@ GpuEngineImpl::createMaterialBindGroup(Material &forM) {
 int
 GpuEngineImpl::initScene() {
 
-
-#ifdef WEBGPU_BACKEND_DAWN
-        // Check for pending error callbacks
-        device.tick();
-#endif
-
     currentScene_ = ObjectPtr<Scene>::make(this);
     ObjectPtr<TransformNode> ringGroup = ObjectPtr<TransformNode>::make();
     currentScene_->addChild(ringGroup);
@@ -900,12 +894,6 @@ GpuEngineImpl::initScene() {
             }
         }
     }
-
-#ifdef WEBGPU_BACKEND_DAWN
-        // Check for pending error callbacks
-        device.tick();
-#endif
-
     return(0);
 }
 
