@@ -47,19 +47,6 @@ public:
     {
     public:
         
-//        TaskEntry(AnimationFunction f, SceneNode *owner)
-//            : task_(f)
-//            , owner_(owner)
-//        {
-//            if(owner) {
-//                OwnedEntryList *list = owner->getProperty(OwnedEntriesKey);
-//                if(list) {
-//                    list->addTaskEntry(this);
-//                } else {
-//                    owner->setProperty(OwnedEntriesKey, OwnedEntryList(this));
-//                }
-//            }
-//        }
 
         TaskEntry(ObjectPtr<AnimationTask> task, SceneNode *owner)
             : task_(task)

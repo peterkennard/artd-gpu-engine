@@ -107,7 +107,7 @@ GpuEngineImpl::GpuEngineImpl()
     camNode_ = ObjectPtr<CameraNode>::make();
     auto cam = ObjectBase::make<Camera>();
     camNode_->setCamera(cam);
-    meshLoader_ = ObjectPtr<CachedMeshLoader>::make();
+    meshLoader_ = ObjectPtr<CachedMeshLoader>::make(this);
     cam->setViewport(viewport_);
     // TODO: we need a scene
     std::memset(&uniforms,0,sizeof(uniforms));
@@ -747,39 +747,19 @@ GpuEngineImpl::initScene() {
             pMat->setId((int)(materials_.size() - 1));
         }
 
-        // create two meshes cube and cone
+        // create/load two meshes cube and cone
 
-        std::vector<float> pointData;
-        std::vector<uint16_t> indexData;
+        ObjectPtr<DrawableMesh> coneMesh = meshLoader_->loadMesh("cone");
+        if(!coneMesh) {
+            return(1);
+        }
 
-        ObjectPtr<DrawableMesh> coneMesh;
-
-    	bool success = meshLoader_->loadGeometry("cone", pointData, indexData, 6 /* dimensions */);
-    	if (!success) {
-    		AD_LOG(info) << "Could not load geometry!";
-    		return 1;
-    	}
-
-        coneMesh = ObjectPtr<DrawableMesh>::make();
-        coneMesh->indexCount_ = (int)indexData.size();
-        coneMesh->iChunk_ = bufferManager_->allocIndexChunk((int)indexData.size(), (const uint16_t *)(indexData.data()));
-        coneMesh->vChunk_ = bufferManager_->allocVertexChunk((int)pointData.size(), pointData.data());
-
-        ObjectPtr<DrawableMesh> cubeMesh;
-
-        if (!success) {
-            AD_LOG(info) << "Could not load geometry!";
+        ObjectPtr<DrawableMesh> sphereMesh = meshLoader_->loadMesh("sphere");
+        if (!sphereMesh) {
             return 1;
         }
 
-        success = meshLoader_->loadGeometry("sphere", pointData, indexData, 6 /* dimensions */);
-
-        cubeMesh = ObjectPtr<DrawableMesh>::make();
-        cubeMesh->indexCount_ = (int)indexData.size();
-        cubeMesh->iChunk_ = bufferManager_->allocIndexChunk((int)indexData.size(), (const uint16_t *)(indexData.data()));
-        cubeMesh->vChunk_ = bufferManager_->allocVertexChunk((int)pointData.size(), pointData.data());
-
-        // lay them out
+        // lay out a bunch of instances
 
         Matrix4f lt(1.0);
         
@@ -861,23 +841,14 @@ GpuEngineImpl::initScene() {
             if((i & 1) != 0) {
                 node->setMesh(coneMesh);
             } else {
-                node->setMesh(cubeMesh);
+                node->setMesh(sphereMesh);
             }
         }
-        
-        cubeMesh = nullptr; //
-        success = meshLoader_->loadGeometry("cube", pointData, indexData, 6 /* dimensions */);
 
-        if (!success) {
-            AD_LOG(info) << "Could not load geometry!";
+        ObjectPtr<DrawableMesh> cubeMesh = meshLoader_->loadMesh("cube");
+        if (!cubeMesh) {
             return 1;
         }
-
-        cubeMesh = ObjectPtr<DrawableMesh>::make();
-        cubeMesh->indexCount_ = (int)indexData.size();
-        
-        cubeMesh->iChunk_ = bufferManager_->allocIndexChunk((int)indexData.size(), (const uint16_t *)(indexData.data()));
-        cubeMesh->vChunk_ = bufferManager_->allocVertexChunk((int)pointData.size(), pointData.data());
 
         {
             materials_.push_back(ObjectBase::make<Material>(this));

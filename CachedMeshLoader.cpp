@@ -1,4 +1,5 @@
-#include "artd/CachedMeshLoader.h"
+#include "./GpuEngineImpl.h"
+#include "./DrawableMesh.h"
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -861,7 +862,7 @@ static void generateConeMesh(uint32_t numSegments, std::vector<float>& pointData
 
 bool
 CachedMeshLoader::loadGeometry(const fs::path& path, std::vector<float>& pointData,
-                               std::vector<uint16_t>& indexData, int /* dimensions */)
+                               std::vector<uint16_t>& indexData, int)
 {
 
     if(path == "cone") {
@@ -960,7 +961,26 @@ CachedMeshLoader::loadGeometry(const fs::path& path, std::vector<float>& pointDa
 //	return true;
 }
 
+ObjectPtr<DrawableMesh>
+CachedMeshLoader::loadMesh( StringArg pathName) {
 
+    std::vector<float> pointData;
+    std::vector<uint16_t> indexData;
 
+    int ret = loadGeometry(pathName.c_str(), pointData, indexData);
+
+    if (!ret) {
+        AD_LOG(info) << "Could not load geometry for " << pathName;
+        return(nullptr);
+    }
+
+    ObjectPtr<DrawableMesh> loaded = ObjectPtr<DrawableMesh>::make();
+
+    loaded->indexCount_ = (int)indexData.size();
+
+    loaded->iChunk_ = owner().bufferManager_->allocIndexChunk((int)indexData.size(), (const uint16_t *)(indexData.data()));
+    loaded->vChunk_ = owner().bufferManager_->allocVertexChunk((int)pointData.size(), pointData.data());
+    return(loaded);
+}
 
 ARTD_END

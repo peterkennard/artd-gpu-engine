@@ -79,6 +79,7 @@ protected:
 
     friend class GpuBufferManagerImpl;
     friend class GpuBufferManager;
+    friend class CachedMeshLoader;
 
     bool headless_ = true;
     GLFWwindow* window = nullptr;
