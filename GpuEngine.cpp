@@ -699,6 +699,40 @@ GpuEngineImpl::initScene() {
     currentScene_ = ObjectPtr<Scene>::make(this);
     ObjectPtr<TransformNode> ringGroup = ObjectPtr<TransformNode>::make();
     currentScene_->addChild(ringGroup);
+    {
+        class AnimTask
+            : public AnimationTask
+        {
+        public:
+            bool onAnimationTick(AnimationTaskContext &ac) override {
+
+                TransformNode *owner = (TransformNode *)ac.owner();
+
+                // Matrix4f lt = ringGroup_->getLocalTransform();
+                Matrix4f lt = owner->getLocalTransform();
+
+                Matrix4f rot;
+                angle += ac.timing().lastFrameDt() * .01;
+                if( angle > (glm::pi<float>()*2)) {
+                    angle -= (glm::pi<float>()*2);
+                }
+
+                rot = glm::rotate(rot, -angle, glm::vec3(0,1.0,0));
+                lt[0] = rot[0];
+                lt[1] = rot[1];
+                lt[2] = rot[2];
+
+                owner->setLocalTransform(lt);
+
+                return(true);
+
+            }
+            float angle = 0.0;
+        };
+        currentScene_->addAnimationTask(ringGroup, ObjectPtr<AnimTask>::make());
+    }
+
+
     
     // setup camera
     {
@@ -815,7 +849,7 @@ GpuEngineImpl::initScene() {
                 }
                 float angle = 0.0;
             };
-            currentScene_->addAnimationTask(light.get(), ObjectPtr<AnimTask>::make());
+            currentScene_->addAnimationTask(light, ObjectPtr<AnimTask>::make());
         }
 
         // layout some objects in a ring around the ringGroup_ node
@@ -1134,7 +1168,10 @@ GpuEngineImpl::renderFrame()  {
     renderPassColorAttachment.resolveTarget = nullptr;
     renderPassColorAttachment.loadOp = LoadOp::Clear;
     renderPassColorAttachment.storeOp = StoreOp::Store;
-    renderPassColorAttachment.clearValue = Color{ 0.3, 0.3, 0.3, 1.0 }; // background color
+    {
+        auto &c = currentScene_->backgroundColor_;
+        renderPassColorAttachment.clearValue = Color(c.r,c.g,c.b,c.a);
+    }
     renderPassDesc.colorAttachmentCount = 1;
     renderPassDesc.colorAttachments = &renderPassColorAttachment;
 

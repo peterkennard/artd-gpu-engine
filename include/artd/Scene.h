@@ -74,7 +74,9 @@ protected:
     typedef SceneNode super;
     
     void tickAnimations(TimingContext &timing);
-    
+
+    Color4f backgroundColor_;
+
     void removeActiveLight(LightNode *l);
     void addActiveLight(LightNode *l);
 
@@ -118,8 +120,15 @@ public:
     void onNodeAttached(SceneNode *n);
     void onNodeDetached(SceneNode *n);
 
-    //    void addAnimationTask(SceneNode *owner, AnimationFunction f);
+    void setBackgroundColor(Color4f &color);
+
     void addAnimationTask(SceneNode *owner, ObjectPtr<AnimationTask> task);
+    
+    // just syntactical convenience does not hold a reference to the owner.
+    template<class NodeT>
+    INL void addAnimationTask(ObjectPtr<NodeT> &owner, ObjectPtr<AnimationTask> task) {
+        addAnimationTask(static_cast<NodeT*>(owner.get()), std::move(task));
+    }
 };
 
 INL

@@ -207,6 +207,8 @@ const TypedPropertyKey<AnimationTaskList::OwnedEntryList>  AnimationTaskList::Ow
 Scene::Scene(GpuEngine *e)
     : owner_(e)
 {
+    backgroundColor_ = Color4f{ 0.2f, 0.2f, 0.2f, 1.0f };
+
     rootNode_ = ObjectPtr<SceneRoot>::make(this);
     animationTasks_ = ObjectPtr<AnimationTaskList>::make();
     activeMaterials_ = ObjectPtr<MaterialList>::make();
@@ -248,6 +250,11 @@ Scene::removeActiveLight(LightNode *l) {
             return;
         }
     }
+}
+
+void
+Scene::setBackgroundColor(Color4f &color) {
+    backgroundColor_ = color;
 }
 
 void
