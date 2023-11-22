@@ -260,7 +260,7 @@ SurfaceMesh dodecahedron()
     return mesh;
 }
 
-#endif
+#endif  // code from sample ...
 
 namespace {
 

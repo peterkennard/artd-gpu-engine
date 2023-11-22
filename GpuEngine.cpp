@@ -743,6 +743,7 @@ GpuEngineImpl::initScene() {
             materials.push_back(ObjectPtr<Material>::make(this));
             auto pMat = materials[materials.size()-1].get();
             pMat->setDiffuse(colors[i]);
+            pMat->setShininess(.001);
         }
 
         // create/load two meshes cone and sphere
@@ -852,7 +853,8 @@ GpuEngineImpl::initScene() {
             materials.push_back(ObjectBase::make<Material>(this));
             auto pMat = materials[materials.size()-1];
             pMat->setDiffuse(Color3f(180,180,180));
-            
+            pMat->setShininess(.001);
+
             textureManager_->loadBindableTexture("test0", [this, pMat](ObjectPtr<TextureView> tView) {
                 if(pMat) {
                     pMat->setDiffuseTex(tView);
@@ -874,21 +876,40 @@ GpuEngineImpl::initScene() {
                     : public AnimationTask
                 {
                 public:
+
+                    bool highlit = false;
+                    float toggleTime = 2.1;
+
                     bool onAnimationTick(AnimationTaskContext &ac) override {
                         
-                        TransformNode *owner = (TransformNode *)ac.owner();
-                    
+                        MeshNode *owner = (MeshNode *)ac.owner();
+                        double dt = ac.timing().lastFrameDt();
+
                         Matrix4f rot;
-                        angle += ac.timing().lastFrameDt() * .1;
+                        angle += dt * .1;
                         if( angle > (glm::pi<float>()*2)) {
                             angle -= (glm::pi<float>()*2);
                         }
-                        
+
                         rot = glm::rotate(rot, angle, glm::vec3(0,1.0,0));
                         rot = glm::rotate(rot, angle*2.5f, glm::normalize(glm::vec3(0,1.0,1.0)));
                                 
                         owner->setLocalTransform(rot);
 
+                        toggleTime -= dt;
+                        if(toggleTime < 0)  {
+                            Material *mat = owner->getMaterial().get();
+                            highlit = !highlit;
+                            if(highlit)  {
+                                mat->setEmissive(Color3f(1.f,1.f,1.f));
+                                toggleTime = .2;
+                            } else {
+                                mat->setEmissive(Color3f(0,0,0));
+//                                mat->setDiffuse(Color3f(180,180,180));
+                                toggleTime += 2.1;
+                            }
+                        }
+                        
                         return(true);
 
                     }

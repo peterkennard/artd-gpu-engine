@@ -43,8 +43,10 @@ struct InstanceData {
 
 struct MaterialData {
     diffuse: vec3f,
-    unused_: f32,  // id ? we need transparency ??
+    unused_: f32,  // id ? we might need transparency ??
     specular: vec3f,
+    shininess: f32,
+    emissive: vec4f,
 };
 
 struct VertexOutput {
@@ -130,10 +132,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 //      and surface normal N reflect returns the reflection direction
 //      calculated as I - 2.0 * dot(N, I) * N.
 
-                let arg1 = scnUniforms.test[0].y;
-
+                // needs to handle the wrap for "large" light sources
                 if(incidence > 0.) {
-//                if(shading > 0.) {
                     var reflectDirection = reflect(light.pose[2], normal);
                     var toView = normalize(in.worldPos.xyz - scnUniforms.eyePose[3].xyz); // vector to eye from position.
                     // TODO: this is not really right - phong like - but acceptable for now
@@ -141,47 +141,14 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
                     var d = dot(reflectDirection, toView) + (wrap * .002);
                     var specPower = 0.0;
 
-                    if(d > 0.0 && arg1 > 0.0) { // TODO: material specularity
-                        specPower = max(pow(d, 1.0 + (arg1+.04) * 1000.), 0.0) * (1.0 - (.4*incidence));
+                    let shine = material.shininess;
+
+                    if(d > 0.0 && shine > 0.0) {
+                        specPower = max(pow(d, 1.0 + (shine+.04) * 1000.), 0.0) * (1.0 - (.4*incidence));
                         if(specPower > 1.0) {
                             specPower = 1.0;
                         }
                     }
-
-                    // 1 minute × π/(60 × 180) = 0.0002909 radians
-                    // sun == 32 minutes ( 16 minutes radius )
-                    // so if d > cos 16 minutes then size of sun
-//                    let sc = cos(arg1 * (3.14159f/2.f)); // if(d > sinCompare)  // way bigger than sun or moon which cos(.0002909)
-//                    if(d > sc)
-//                    {
-//                        var dToSc = 0.0;
-//                        if(sc > 0) {
-//                            dToSc = 1.0 - (1.0 - d)/(1.0 - sc);
-//                        }
-//                        // lerp
-//                        // return (start_value + (end_value - start_value) * pct);
-//                        dToSc = (.3 + (1.0 - .3) * dToSc);
-//                        if(dToSc > 0.0) {
-//                            specPower = dToSc;
-//                        }
-//
-//                        // (dToSc * 4); // (1.0 - (d - sc));
-//                        // specPower = 1.0;
-//                    } else {
-//
-//                        var dToSc = 0.0;
-//                        if(sc > 0) {
-//                            dToSc = (d/sc) * 50.0;
-//                        }
-//                        dToSc -= 49.999;
-//
-//                        specPower = dToSc * .3;
-//
-//                        // sc += .0000001;
-//                        // specPower = 0.0; //1.0 - ( sc - d )/sc;
-//
-//                    }  // .2 * (pow(max(d, 0.0), 10.1 ) - 1060.0); // shininess);
-
                     if(specPower < 0.0) {
                         specPower = 0.;
                     }
@@ -209,6 +176,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
         }
     }
     var diffColor: vec3f;
+    var emitColor = vec3f(0,0,0);
+
     if(hasTex0) {
     	// maybe if we don't use a sampler.
     	// We remap UV coords to actual texel coordinates
@@ -217,12 +186,30 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     	// And we fetch a texel from the texture
         //	let color = textureLoad(tex0, texelCoords, 0).rgb;
 
-        diffColor = material.diffuse * textureSample(texture0, sampler0, in.uv).rgb;
+        diffColor = textureSample(texture0, sampler0, in.uv).rgb;
+        emitColor = diffColor *  material.emissive.xyz;
+        diffColor = diffColor * material.diffuse;
+
+
+/*
+        var dmult = diffuseMult;
+        var max = dmult.x;
+        if(dmult.y > max) {
+            max = dmult.y;
+        }
+        if(dmult.z > max) {
+            max = dmult.z;
+        }
+//        if(max > 0) {
+//            max = 1.0/max;
+//            diffuseMult = dmult*max;
+//        }
+*/
     } else {
         diffColor = material.diffuse;
     }
 
-	var color = diffColor * diffuseMult + specularMult; // shading;
+	var color = diffColor * diffuseMult + emitColor + specularMult; // shading;
     if(color.x > 1.0) {
         color.x = 1.0;
     }
