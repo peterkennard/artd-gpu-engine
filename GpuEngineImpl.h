@@ -18,11 +18,11 @@
 #include "artd/GpuBufferManager.h"
 #include "artd/TimingContext.h"
 #include "artd/LambdaEventQueue.h"
+#include "artd/Material.h"
 #include "artd/Scene.h"
 
 #include "./InputManager.h"
 #include "./FpsMonitor.h"
-#include "./Material.h"
 
 #include <array>
 #include <chrono>
@@ -205,9 +205,6 @@ protected:
     INL ObjectPtr<Material> &getDefaultMaterial() {
         return(defaultMaterial_);
     }
-
-    // TODO: Integrate into ResourceManager, or create a material manager to handle dynamism creating/deleting
-    std::vector<ObjectPtr<Material>> materials_;
 
     ObjectPtr<Viewport> viewport_;
     ObjectPtr<CameraNode> camNode_;

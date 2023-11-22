@@ -13,6 +13,12 @@ MeshNode::~MeshNode() {
 void
 MeshNode::setMaterial(ObjectPtr<Material> newMat) {
     material_ = newMat;
+    if(newMat) {
+        Scene *s = getScene();
+        if(s) {
+            s->addActiveMaterial(newMat.get());
+        }
+    }
 }
 
 void MeshNode::setMesh(ObjectPtr<DrawableMesh> mesh) {
@@ -24,7 +30,7 @@ MeshNode::loadInstanceData(struct InstanceData &data) {
     data.modelMatrix = getLocalToWorldTransform();
     data.materialId = 0;
     if(material_) {
-        data.materialId = material_->getId();
+        data.materialId = material_->getIndex();
     }
 }
 

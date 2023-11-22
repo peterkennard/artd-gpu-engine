@@ -656,13 +656,11 @@ GpuEngineImpl::init(bool headless, int width, int height) {
     }
 
     // create defaultMaterial
-    materials_.clear();
     {
-        materials_.push_back(ObjectPtr<Material>::make(this));
-        defaultMaterial_ = materials_[materials_.size()-1];
+        ObjectPtr<Material> mat = ObjectPtr<Material>::make(this);
+        defaultMaterial_ = mat;
         auto pMat = defaultMaterial_.get();
         pMat->setDiffuse(Color3f(30,30,30));
-        pMat->setId((int)(materials_.size() - 1));  // TODO: better material Ids ?
         pMat->bindings_ = createMaterialBindGroup(*pMat);
     }
 
@@ -720,6 +718,13 @@ GpuEngineImpl::initScene() {
         uniforms.projectionMatrix = camera->getProjection();
     }
 
+    // this holds references until we assign them to drawable nodes;
+    // TODO: store by name in cache ? optional ?
+    // Currently unless referenced, when all objects with materials in them
+    // are deleted the material goes away too.
+    
+    std::vector<ObjectPtr<Material>> materials;
+
     // initialize a scene (big hack)
     {
         // test colors
@@ -735,13 +740,12 @@ GpuEngineImpl::initScene() {
         };
 
         for(int i = 0; i < (int)ARTD_ARRAY_LENGTH(colors); ++i) {
-            materials_.push_back(ObjectPtr<Material>::make(this));
-            auto pMat = materials_[materials_.size()-1].get();
+            materials.push_back(ObjectPtr<Material>::make(this));
+            auto pMat = materials[materials.size()-1].get();
             pMat->setDiffuse(colors[i]);
-            pMat->setId((int)(materials_.size() - 1));
         }
 
-        // create/load two meshes cube and cone
+        // create/load two meshes cone and sphere
 
         ObjectPtr<DrawableMesh> coneMesh = meshLoader_->loadMesh("cone");
         if(!coneMesh) {
@@ -812,12 +816,12 @@ GpuEngineImpl::initScene() {
             };
             currentScene_->addAnimationTask(light.get(), ObjectPtr<AnimTask>::make());
         }
-        
+
         // layout some objects in a ring around the ringGroup_ node
         // assign one of the test materials to it.
-        uint32_t materialId = 1;
-        uint32_t maxI = 13;
-        for(uint32_t i = 1; i < maxI; ++i)  {
+        uint32_t materialId = 0;
+        uint32_t maxI = 12;
+        for(uint32_t i = 0; i < maxI; ++i)  {
         
             MeshNode *node = (MeshNode *)ringGroup->addChild(ObjectPtr<MeshNode>::make());
             node->setId(i + 10);
@@ -827,9 +831,9 @@ GpuEngineImpl::initScene() {
             node->setLocalTransform(lt);
             trans = glm::mat3(drot) * trans;
             
-            node->setMaterial(materials_[materialId]);
-            if(++materialId >= materials_.size()) {
-                materialId = 1;
+            node->setMaterial(materials[materialId]);
+            if(++materialId >= materials.size()) {
+                materialId = 0;
             }
             
             if((i & 1) != 0) {
@@ -845,14 +849,15 @@ GpuEngineImpl::initScene() {
         }
 
         {
-            materials_.push_back(ObjectBase::make<Material>(this));
-            auto pMat = materials_[materials_.size()-1];
+            materials.push_back(ObjectBase::make<Material>(this));
+            auto pMat = materials[materials.size()-1];
             pMat->setDiffuse(Color3f(180,180,180));
-            pMat->setId((int)(materials_.size() - 1));
             
             textureManager_->loadBindableTexture("test0", [this, pMat](ObjectPtr<TextureView> tView) {
                 if(pMat) {
                     pMat->setDiffuseTex(tView);
+                    // todo: creating bindings should be automatic and handled internally
+                    // and triggered by modifying values.
                     pMat->bindings_ = createMaterialBindGroup(*(pMat.get()));
                 }
             });
@@ -984,34 +989,36 @@ GpuEngineImpl::renderFrame()  {
 
         // update data on GPU for active (visible) object instances.
  
-        // upload material data array
+        // upload active material data array
         {
             Buffer iBuffer = materialBuffer_->getBuffer();
             auto offset = materialBuffer_->getStartOffset();
 
-            int countLeft = (int)materials_.size();
-            // temp buffer to upload
+            int uploadCount = 0;   // TODO: for now we just assume the buffer is allocated big enough !!!
+            int materialIndex = 0;
+
             const int maxCount = (int)(bufferSize/sizeof(MaterialShaderData));
-            int uploadCount = (int)std::min(maxCount,countLeft);
             MaterialShaderData *iData = (MaterialShaderData *)workBuffer.get();
 
-            while(countLeft > 0) {
-                int i = 0;
-                
-                for(; i < uploadCount; ++i) {
-                    materials_[i]->loadShaderData(iData[i]);
+            for(auto it = currentScene_->activeMaterials_->begin(); it != currentScene_->activeMaterials_->end(); ++it) {
+                Material &mat = *it;
+
+                if(uploadCount < maxCount) {
+                    mat.loadShaderData(iData[uploadCount]);
+                    mat.setIndex(materialIndex);
+                    ++materialIndex;
+                    ++uploadCount;
+                } else {
+                    queue.writeBuffer(iBuffer, offset, &iData[0], uploadCount * sizeof(*iData) );
+                    uploadCount = 0;
                 }
-                countLeft -= i;
-                // upload a buffer full
-                i *= sizeof(*iData);
-                queue.writeBuffer(iBuffer, offset, &iData[0], i );
-                offset += i;
-                uploadCount = (int)std::min(maxCount,countLeft);
+            }
+            if(uploadCount > 0) {
+                 queue.writeBuffer(iBuffer, offset, &iData[0], uploadCount * sizeof(*iData) );
             }
         }
 
-        
-        // upload instance data array
+        // upload instance data array, done after material indices are assigned and data uploaded
         {
             Buffer iBuffer = instanceBuffer_->getBuffer();
             auto offset = instanceBuffer_->getStartOffset();

@@ -2,6 +2,7 @@
 #include "artd/Scene.h"
 #include "artd/LightNode.h"
 #include "artd/Mutex.h"
+#include "artd/Material.h"
 
 #include "./MeshNode.h"
 
@@ -46,8 +47,6 @@ public:
         : public DlNode
     {
     public:
-        
-
         TaskEntry(ObjectPtr<AnimationTask> task, SceneNode *owner)
             : task_(task)
             , owner_(owner)
@@ -210,8 +209,7 @@ Scene::Scene(GpuEngine *e)
 {
     rootNode_ = ObjectPtr<SceneRoot>::make(this);
     animationTasks_ = ObjectPtr<AnimationTaskList>::make();
-    
-//    animationTasks_->test();
+    activeMaterials_ = ObjectPtr<MaterialList>::make();
 }
 
 Scene::~Scene()
@@ -265,6 +263,13 @@ Scene::addActiveLight(LightNode *l) {
 }
 
 void
+Scene::addActiveMaterial(Material *mat) {
+    if(mat && ((DlNode *)mat)->detached()) {
+        activeMaterials_->addTail(mat);
+    };
+}
+
+void
 Scene::addDrawable(SceneNode *l) {
 
     for(int i = (int)drawables_.size(); i > 0;) {
@@ -273,7 +278,10 @@ Scene::addDrawable(SceneNode *l) {
             return;
         }
     }
-    drawables_.push_back((MeshNode*)l);
+    MeshNode *mn = (MeshNode*)l;
+    Material *mat = mn->getMaterial().get();
+    addActiveMaterial(mat);
+    drawables_.push_back(mn);
 }
 void
 Scene::removeDrawable(SceneNode *l) {
@@ -310,9 +318,6 @@ Scene::onNodeDetached(SceneNode *n) {
     }
 }
 
-//void Scene::addAnimationTask(SceneNode *owner, AnimationFunction task) {
-//    animationTasks_->addTask(owner, task);
-//}
 void Scene::addAnimationTask(SceneNode *owner, ObjectPtr<AnimationTask> task) {
     animationTasks_->addTask(owner, task);
 }

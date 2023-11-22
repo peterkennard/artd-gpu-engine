@@ -4,6 +4,7 @@
 #include <webgpu/webgpu.hpp>
 #include "artd/Color3f.h"
 #include "artd/ObjectBase.h"
+#include "artd/IntrusiveList.h"
 
 ARTD_BEGIN
 
@@ -13,7 +14,7 @@ class TextureView;
 
 struct MaterialShaderData  {
     glm::vec3 diffuse_;
-    int32_t id_;
+    int32_t ix_;  // unused in shader
     glm::vec3 specular_;
     float pad0_;
 };
@@ -22,7 +23,9 @@ static_assert(sizeof(MaterialShaderData) % 16 == 0);
 
 class GpuEngineImpl;
 
-class ARTD_API_GPU_ENGINE Material {
+class ARTD_API_GPU_ENGINE Material
+    : public DlNode  // for attaching to scene material list
+{
 public:
     Material(GpuEngineImpl *owner);
     ~Material();
@@ -36,11 +39,12 @@ public:
     INL void setDiffuseTex(ObjectPtr<TextureView> tView) {
         diffuseTex_ = tView;
     }
-    INL void setId(int id) {
-        data_.id_ = id;
+    // only set by renderer.
+    INL void setIndex(int index) {
+        data_.ix_ = index;
     }
-    INL int32_t getId() {
-        return(data_.id_);
+    INL int32_t getIndex() {
+        return(data_.ix_);
     }
     INL wgpu::BindGroup &getBindings() {
         return(bindings_);
@@ -55,7 +59,6 @@ public:
 
 private:
     MaterialShaderData data_;
-
 };
 
 #undef INL

@@ -1,6 +1,8 @@
 #pragma once
 #include "artd/TransformNode.h"
 #include "artd/TimingContext.h"
+#include "artd/Material.h"
+
 #include <functional>
 
 ARTD_BEGIN
@@ -61,11 +63,13 @@ class ARTD_API_GPU_ENGINE Scene
 {
     GpuEngine *owner_;
     friend class GpuEngineImpl;
+    friend class MeshNode;
     
     ObjectPtr<TransformNode> rootNode_;
     ObjectPtr<AnimationTaskList> animationTasks_;
 
 protected:
+    
     GpuEngineImpl *getOwner();
     typedef SceneNode super;
     
@@ -76,9 +80,22 @@ protected:
 
     // TODO: to be grouped by shader/pipeline  Just a hack for now.
     std::vector<MeshNode*> drawables_;
+    
 
     void addDrawable(SceneNode *l);
     void removeDrawable(SceneNode *l);
+
+    class MaterialList
+        : public IntrusiveList<Material,MaterialList>
+    {
+    public:
+        MaterialList() {
+        }
+    };
+
+
+    ObjectPtr<MaterialList> activeMaterials_;
+    void addActiveMaterial(Material *mat);
 
 public:
 

@@ -36,7 +36,7 @@ struct SceneUniforms {
 
 struct InstanceData {
     modelMatrix: mat4x4f,
-    materialId: u32,
+    materialIx: u32,
     objectId: u32,
     unused2_: u32, // pad for 16 bytes alignment (needed ? )
 };
@@ -83,7 +83,7 @@ fn vs_main(in: VertexInput) -> VertexOutput {
     let nMat = mat3x3f(mMat[0].xyz, mMat[1].xyz, mMat[2].xyz);
     out.normal = normalize(nMat * in.normal);
 
-	out.materialIx = instanceArray[in.instanceIx].materialId;
+	out.materialIx = instanceArray[in.instanceIx].materialIx;
     return out;
 }
 
