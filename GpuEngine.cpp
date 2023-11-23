@@ -1033,6 +1033,9 @@ GpuEngineImpl::processEvents() {
     updateQueue_->executeEvents();
     return(true);
 }
+static void doBuf(size_t, Buffer) {
+    
+}
 
 int
 GpuEngineImpl::renderFrame()  {
@@ -1063,6 +1066,9 @@ GpuEngineImpl::renderFrame()  {
     if(!instance) {
         return(-1);
     }
+    
+  //  Queue queue = device.getQueue();
+
 
     {
         static const int bufferSize = 0x2000;
@@ -1072,6 +1078,7 @@ GpuEngineImpl::renderFrame()  {
  
         // upload active material data array
         {
+            
             Buffer iBuffer = materialBuffer_->getBuffer();
             auto offset = materialBuffer_->getStartOffset();
 
@@ -1103,6 +1110,7 @@ GpuEngineImpl::renderFrame()  {
         {
             Buffer iBuffer = instanceBuffer_->getBuffer();
             auto offset = instanceBuffer_->getStartOffset();
+            doBuf(offset,iBuffer);
 
             int countLeft = (int)currentScene_->drawables_.size();
             // temp buffer to upload
@@ -1147,6 +1155,7 @@ GpuEngineImpl::renderFrame()  {
  
             Buffer iBuffer = uniformBuffer_->getBuffer();
             auto offset = uniformBuffer_->getStartOffset();
+            doBuf(offset,iBuffer);
 
             uint8_t *outBytes = workBuffer.get();
             (*(SceneUniforms *)outBytes) = uniforms;
@@ -1174,12 +1183,15 @@ GpuEngineImpl::renderFrame()  {
             }
         }
 
-        #if 0
-        #endif // 0
-
     }
+    
+#ifdef WEBGPU_BACKEND_DAWN
+        // Check for pending error callbacks
+        device.tick();
+#endif
+   
 
-
+    
     wgpu::TextureView nextTexture = getNextTexture();
     if (!nextTexture) {
         AD_LOG(error) << "Cannot acquire next swap chain texture";
@@ -1268,6 +1280,7 @@ GpuEngineImpl::renderFrame()  {
             }
         }
     }
+    
     renderPass.end();
 
     CommandBufferDescriptor cmdBufferDescriptor{};
@@ -1276,12 +1289,11 @@ GpuEngineImpl::renderFrame()  {
     queue.submit(command);
     presentImage(nextTexture);
 
-    if(!headless_) {
-        nextTexture.release();
-    }
 
-    renderPass.release();
     command.release();
+    renderPass.release();
+    encoder.release();
+//    queue.release();
 
 #ifdef WEBGPU_BACKEND_DAWN
         // Check for pending error callbacks
