@@ -104,12 +104,16 @@ GpuEngineImpl::GpuEngineImpl()
 {
     bufferManager_ = GpuBufferManager::create(this);
     viewport_ = ObjectPtr<Viewport>::make();
-    camNode_ = ObjectPtr<CameraNode>::make();
-    auto cam = ObjectBase::make<Camera>();
-    camNode_->setCamera(cam);
+
+    defaultCamera_ = ObjectPtr<CameraNode>::make();
+    auto camera = ObjectBase::make<Camera>();
+    defaultCamera_->setCamera(camera);
     meshLoader_ = ObjectPtr<CachedMeshLoader>::make(this);
-    cam->setViewport(viewport_);
-    // TODO: we need a scene
+    camera->setViewport(viewport_);
+    camera->setNearClip(0.01f);
+    camera->setFarClip(100.0f);
+    camera->setFocalLength(2.0);
+
     std::memset(&uniforms,0,sizeof(uniforms));
 }
 
@@ -277,7 +281,6 @@ GpuEngineImpl::init(bool headless, int width, int height) {
 
     {
         auto eventPool = ObjectPtr<LambdaEventQueue::LambdaEventPool>::make();
- 
         inputQueue_ = ObjectPtr<LambdaEventQueue>::make(eventPool);
         updateQueue_ = ObjectPtr<LambdaEventQueue>::make(eventPool);
     }
@@ -383,6 +386,9 @@ GpuEngineImpl::init(bool headless, int width, int height) {
     if(ret) {
         return(ret);
     }
+
+    viewport_->setRect(0,0,width,height);
+
     depthTextureFormat_ = TextureFormat::Depth24Plus;
     ret = initDepthBuffer();
     if(ret) {
@@ -697,8 +703,29 @@ int
 GpuEngineImpl::initScene() {
 
     currentScene_ = ObjectPtr<Scene>::make(this);
+    Scene *scene = currentScene_.get();
+
     ObjectPtr<TransformNode> ringGroup = ObjectPtr<TransformNode>::make();
-    currentScene_->addChild(ringGroup);
+
+    {
+        ObjectPtr<CameraNode> cameraNode = ObjectPtr<CameraNode>::make();
+        auto camera = ObjectBase::make<Camera>();
+        // this could be cleaned up and done more automatically, but we will have diffent types of cameras !
+        cameraNode->setCamera(camera);
+
+        glm::mat4 camPose(1.0);
+        camPose = glm::rotate(camPose, glm::pi<float>()/8, glm::vec3(1.0,0,0)); // glm::vec4(1.0,0,-3,1);
+        camPose = glm::translate(camPose, glm::vec3(0,1.0,-5.1));
+
+        cameraNode->setLocalTransform(camPose);
+
+        camera->setNearClip(0.01f);
+        camera->setFarClip(100.0f);
+        camera->setFocalLength(2.0);
+        scene->setCurrentCamera(cameraNode);
+    }
+
+    scene->addChild(ringGroup);
     {
         class AnimTask
             : public AnimationTask
@@ -729,27 +756,7 @@ GpuEngineImpl::initScene() {
             }
             float angle = 0.0;
         };
-        currentScene_->addAnimationTask(ringGroup, ObjectPtr<AnimTask>::make());
-    }
-
-
-    
-    // setup camera
-    {
-        glm::mat4 camPose(1.0);
-        camPose = glm::rotate(camPose, glm::pi<float>()/8, glm::vec3(1.0,0,0)); // glm::vec4(1.0,0,-3,1);
-        camPose = glm::translate(camPose, glm::vec3(0,1.0,-5.1));
-
-        camNode_->setLocalTransform(camPose);
-        auto camera = camNode_->getCamera();
-        camera->setNearClip(0.01f);
-        camera->setFarClip(100.0f);
-        camera->setFocalLength(2.0);
-        viewport_->setRect(0,0,width_,height_);
-        camera->setViewport(viewport_);
-
-        uniforms.viewMatrix = camera->getView();
-        uniforms.projectionMatrix = camera->getProjection();
+        scene->addAnimationTask(ringGroup, ObjectPtr<AnimTask>::make());
     }
 
     // this holds references until we assign them to drawable nodes;
@@ -1104,7 +1111,7 @@ GpuEngineImpl::renderFrame()  {
             const int headerSize = sizeof(SceneUniforms);
             
             // update the global uniform data - camera transforms, lights etc
-            auto camera = camNode_->getCamera();
+            auto camera = currentScene_->currentCamera_->getCamera();
             uniforms.viewMatrix = camera->getView();
             uniforms.projectionMatrix = camera->getProjection();
             uniforms.eyePose = camera->getPose(); // glm::inverse(camera->getView());

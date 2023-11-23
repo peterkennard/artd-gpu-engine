@@ -101,9 +101,9 @@ InputManager::keyCallback(GLFWwindow* window, int key, int /*scancode*/, int act
         AD_LOG(print) << "val[" << index << "] = " << inc;
         owner.uniforms.test[index] = inc;
 
-        if(index == 0) {
-            owner.currentScene_->lights_[0]->setAreaWrap(inc);
-        }
+//        if(index == 0) {
+//            owner.currentScene_->lights_[0]->setAreaWrap(inc);
+//        }
 
         return(false);
     });

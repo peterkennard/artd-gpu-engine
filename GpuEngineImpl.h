@@ -80,6 +80,7 @@ protected:
     friend class GpuBufferManagerImpl;
     friend class GpuBufferManager;
     friend class CachedMeshLoader;
+    friend class Scene;
 
     bool headless_ = true;
     GLFWwindow* window = nullptr;
@@ -207,7 +208,7 @@ protected:
     }
 
     ObjectPtr<Viewport> viewport_;
-    ObjectPtr<CameraNode> camNode_;
+    ObjectPtr<CameraNode> defaultCamera_;
 
     GpuEngineImpl();
     ~GpuEngineImpl();
@@ -249,7 +250,6 @@ protected:
     int resizeSwapChain(int width, int height);
 
 public:
-
 
     int init(bool headless, int width, int height);
     int renderFrame();

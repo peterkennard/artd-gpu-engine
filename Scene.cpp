@@ -208,7 +208,7 @@ Scene::Scene(GpuEngine *e)
     : owner_(e)
 {
     backgroundColor_ = Color4f{ 0.2f, 0.2f, 0.2f, 1.0f };
-
+    currentCamera_ = ((GpuEngineImpl*)e)->defaultCamera_;
     rootNode_ = ObjectPtr<SceneRoot>::make(this);
     animationTasks_ = ObjectPtr<AnimationTaskList>::make();
     activeMaterials_ = ObjectPtr<MaterialList>::make();
@@ -257,6 +257,14 @@ Scene::setBackgroundColor(Color4f &color) {
     backgroundColor_ = color;
 }
 
+void
+Scene::setCurrentCamera(ObjectPtr<CameraNode> &camera) {
+    if(!camera) {
+        camera = GpuEngineImpl::getInstance().defaultCamera_;
+    }
+    camera->getCamera()->setViewport(GpuEngineImpl::getInstance().viewport_);
+    currentCamera_ = camera;    
+}
 void
 Scene::addActiveLight(LightNode *l) {
 

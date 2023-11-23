@@ -16,6 +16,7 @@ class Material;
 class TimingContext;
 class MeshNode;
 class AnimationTaskList;
+class CameraNode;
 
 class AnimationTaskContext
 {
@@ -83,6 +84,8 @@ protected:
     // TODO: to be grouped by shader/pipeline  Just a hack for now.
     std::vector<MeshNode*> drawables_;
     
+    // TODO: active vs: turned off ( visible invisible ) with or without parents ...
+    std::vector<LightNode*> lights_;
 
     void addDrawable(SceneNode *l);
     void removeDrawable(SceneNode *l);
@@ -95,15 +98,12 @@ protected:
         }
     };
 
-
     ObjectPtr<MaterialList> activeMaterials_;
     void addActiveMaterial(Material *mat);
 
+    ObjectPtr<CameraNode> currentCamera_;
+    
 public:
-
-    // scene graph items
-    // TODO: active vs: turned off ( visible invisible ) with or without parents ...
-    std::vector<LightNode*> lights_;
 
     Scene(GpuEngine *owner);
     virtual ~Scene();
@@ -121,6 +121,7 @@ public:
     void onNodeDetached(SceneNode *n);
 
     void setBackgroundColor(Color4f &color);
+    void setCurrentCamera(ObjectPtr<CameraNode> &camera);
 
     void addAnimationTask(SceneNode *owner, ObjectPtr<AnimationTask> task);
     
