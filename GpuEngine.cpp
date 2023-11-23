@@ -1011,6 +1011,22 @@ GpuEngineImpl::processEvents() {
         return(false);
     }
     timing_.tickFrame();
+
+    if(!headless_) {
+        
+        int visible = (window && glfwGetWindowAttrib(window, GLFW_VISIBLE));
+        if(!visible) {
+            Thread::sleep(1000/15);
+        }
+        // note this does not reflect whether computer is lseeping or not ( on mac );
+        
+//        if(timing_.isDebugFrame()) {
+//            int iconified = glfwGetWindowAttrib(window, GLFW_ICONIFIED);
+//            AD_LOG(print) << "iconified: " << iconified << " visible " << visible;
+//        }
+           
+    }
+
     fpsMonitor_.tickFrame(timing_);
     inputQueue_->executeEvents();
     currentScene_->tickAnimations(timing_);
@@ -1038,6 +1054,9 @@ GpuEngineImpl::renderFrame()  {
     } else {
         if(!processEvents()) {
             return(1);
+        }
+        if(window && !glfwGetWindowAttrib(window, GLFW_VISIBLE)) {
+            return(0);  // don't bother rendering !!
         }
     }
 
@@ -1154,8 +1173,13 @@ GpuEngineImpl::renderFrame()  {
                 }
             }
         }
+
+        #if 0
+        #endif // 0
+
     }
-    
+
+
     wgpu::TextureView nextTexture = getNextTexture();
     if (!nextTexture) {
         AD_LOG(error) << "Cannot acquire next swap chain texture";
@@ -1218,7 +1242,6 @@ GpuEngineImpl::renderFrame()  {
         // set group for scene specific data being used.
         renderPass.setBindGroup(0, bindGroup, 0, nullptr);
         renderPass.setBindGroup(1, lastMaterialBindings, 0, nullptr); // default texture
-
         for(size_t i = 0; i < currentScene_->drawables_.size(); ++i) {
 
             auto drawable = currentScene_->drawables_[i];
@@ -1247,17 +1270,18 @@ GpuEngineImpl::renderFrame()  {
     }
     renderPass.end();
 
-    if(!headless_) {
-        nextTexture.release();
-    }
-
     CommandBufferDescriptor cmdBufferDescriptor{};
     cmdBufferDescriptor.label = "Command buffer";
     CommandBuffer command = encoder.finish(cmdBufferDescriptor);
     queue.submit(command);
-
     presentImage(nextTexture);
 
+    if(!headless_) {
+        nextTexture.release();
+    }
+
+    renderPass.release();
+    command.release();
 
 #ifdef WEBGPU_BACKEND_DAWN
         // Check for pending error callbacks
