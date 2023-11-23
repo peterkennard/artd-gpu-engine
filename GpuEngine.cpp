@@ -1013,13 +1013,13 @@ GpuEngineImpl::processEvents() {
     timing_.tickFrame();
 
     if(!headless_) {
-        
+        // this handles being iconified, does not handle window being occluded
+        // and does not handle computer going to sleep.
+
         int visible = (window && glfwGetWindowAttrib(window, GLFW_VISIBLE));
         if(!visible) {
             Thread::sleep(1000/15);
         }
-        // note this does not reflect whether computer is lseeping or not ( on mac );
-        
 //        if(timing_.isDebugFrame()) {
 //            int iconified = glfwGetWindowAttrib(window, GLFW_ICONIFIED);
 //            AD_LOG(print) << "iconified: " << iconified << " visible " << visible;
