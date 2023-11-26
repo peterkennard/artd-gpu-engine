@@ -1069,7 +1069,6 @@ GpuEngineImpl::renderFrame()  {
     
   //  Queue queue = device.getQueue();
 
-
     {
         static const int bufferSize = 0x2000;
         std::unique_ptr<uint8_t> workBuffer(new uint8_t[bufferSize]); // todo pick optimum buffer size ?
@@ -1239,7 +1238,6 @@ GpuEngineImpl::renderFrame()  {
     renderPassDesc.timestampWrites = nullptr;
 
     RenderPassEncoder renderPass = encoder.beginRenderPass(renderPassDesc);
-
     // Select which render pipeline to use
     renderPass.setPipeline(pipeline);
 
