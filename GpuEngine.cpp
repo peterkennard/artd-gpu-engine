@@ -965,11 +965,14 @@ GpuEngineImpl::initScene() {
 }
 
 void
-GpuEngineImpl::presentImage(wgpu::TextureView /*texture*/ )  {
+GpuEngineImpl::presentImage(wgpu::TextureView texture )  {
     if(headless_) {
         pixelLockLock_.signal();
     } else {
         swapChain.present();
+        if(texture) {
+            texture.release();
+        }
     }
 }
 wgpu::TextureView
