@@ -1,4 +1,4 @@
-#include "MeshNode.h"
+#include "artd/MeshNode.h"
 #include "DrawableMesh.h"
 #include "./GpuEngineImpl.h"
 

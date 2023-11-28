@@ -13,8 +13,8 @@ PickerPass::PickerPass(GpuEngineImpl *owner)
 	using namespace wgpu;
 
     // todo: pick best size.
-    width_ = 0x40;  // 64
-    height_ = 0x40;
+    width_ = 0x20;  // 64
+    height_ = 0x20;
 
 	// Create a texture onto which we blit the texture view
 	TextureDescriptor renderTextureDesc;
@@ -26,7 +26,7 @@ PickerPass::PickerPass(GpuEngineImpl *owner)
     renderTextureDesc.usage = TextureUsage::RenderAttachment | TextureUsage::TextureBinding | TextureUsage::CopyDst; // TextureUsage::CopySrc;
 	renderTextureDesc.viewFormatCount = 0;
 	renderTextureDesc.viewFormats = nullptr;
-	renderTexture_ = device_.createTexture(renderTextureDesc);
+	wgpu::Texture renderTexture = device_.createTexture(renderTextureDesc);
 
 	TextureViewDescriptor renderTextureViewDesc;
 	renderTextureViewDesc.aspect = TextureAspect::All;
@@ -36,7 +36,7 @@ PickerPass::PickerPass(GpuEngineImpl *owner)
 	renderTextureViewDesc.mipLevelCount = 1;
 	renderTextureViewDesc.dimension = TextureViewDimension::_2D;
 	renderTextureViewDesc.format = renderTextureDesc.format;
-	renderTextureView_ = renderTexture_.createView(renderTextureViewDesc);
+	wgpu::TextureView renderTextureView = renderTexture.createView(renderTextureViewDesc);
     
     
     // Create test image data -
@@ -44,19 +44,20 @@ PickerPass::PickerPass(GpuEngineImpl *owner)
     for (uint32_t i = 0; i < width_; ++i) {
         for (uint32_t j = 0; j < height_; ++j) {
             uint8_t *p = &pixels[4 * (j * width_ + i)];
-            p[0] = (i / 16) % 2 == (j / 16) % 2 ? 255 : 0; // r
-            p[1] = ((i - j) / 16) % 2 == 0 ? 255 : 0; // g
-            p[2] = ((i + j) / 16) % 2 == 0 ? 255 : 0; // b
+            p[0] = (i / 16) % 2 == (j / 16) % 2 ? 128 : 0; // r
+            p[1] = ((i - j) / 16) % 2 == 0 ? 128 : 0; // g
+            p[2] = ((i + j) / 16) % 2 == 0 ? 128 : 0; // b
             p[3] = 255; // a
         }
     }
+    
     // copy pixels into texture
     
     // Upload texture data
     // Arguments telling which part of the texture we upload to
     // (together with the last argument of writeTexture)
     ImageCopyTexture destination;
-    destination.texture = renderTexture_;
+    destination.texture = renderTexture;
     destination.mipLevel = 0;
     destination.origin = { 0, 0, 0 }; // equivalent of the offset argument of Queue::writeBuffer
     destination.aspect = TextureAspect::All; // only relevant for depth/Stencil textures
@@ -71,10 +72,9 @@ PickerPass::PickerPass(GpuEngineImpl *owner)
     Queue queue = device_.getQueue();
     queue.writeTexture(destination, pixels.data(), pixels.size(), source, renderTextureDesc.size);
     
+    texView_ = ObjectPtr<TextureView>::make(renderTextureView, ObjectPtr<Texture>::make(renderTexture));
 }
 PickerPass::~PickerPass() {
-    renderTexture_.destroy();
-    renderTexture_.release();
 }
 
 ARTD_END

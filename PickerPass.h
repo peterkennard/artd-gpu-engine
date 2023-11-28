@@ -1,6 +1,7 @@
 #pragma once
 
 #include "artd/gpu_engine.h"
+#include "artd/Texture.h"
 #include <webgpu/webgpu.hpp>
 
 ARTD_BEGIN
@@ -18,19 +19,21 @@ public:
     PickerPass(GpuEngineImpl *owner);
     ~PickerPass();
 
-    INL wgpu::TextureView  getTextureView() {
-        return(renderTextureView_);
+    INL ObjectPtr<TextureView>  &getTextureView() {
+        return(texView_);
     }
+
 private:
     wgpu::Device device_;
     uint32_t width_;
     uint32_t height_;
+    
+    ObjectPtr<TextureView> texView_;
+    
     wgpu::BindGroupLayout bindGroupLayout_ = nullptr;
     wgpu::RenderPassDescriptor renderPassDesc_;
     wgpu::RenderPipeline pipeline_ = nullptr;
-    wgpu::Texture renderTexture_ = nullptr;
     wgpu::TextureDescriptor renderTextureDesc_;
-    wgpu::TextureView renderTextureView_ = nullptr;
 };
 
 #undef INL

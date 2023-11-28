@@ -48,10 +48,16 @@ struct SceneUniforms {
     float test[16];
     float time;
 
+    uint32_t passType;
     uint32_t numLights;
-    float _pad[2];
+    float _pad[1];
 
     static const int MaxLights = 64;
+
+    static const uint32_t PassTypeOpaque = 0;
+    static const uint32_t PassTypeTransparency = 1;
+    static const uint32_t PassTypePick = 2;
+
 };
 
 // Have the compiler check byte alignment
@@ -251,7 +257,7 @@ protected:
 
 public:
 
-    int init(bool headless, int width, int height);
+    int init(bool headless, int width, int height) override;
     int renderFrame();
     INL const TimingContext &timing() const { return(timing_); }
     void releaseResources();
@@ -259,8 +265,16 @@ public:
     int getPixels(uint32_t *pBuf);
     const int *lockPixels(int timeoutMillis);
     void unlockPixels();
+    void setCurrentScene(ObjectPtr<Scene> scene) {
+        currentScene_ = scene;
+    }
+
 };
 
+INL GpuEngineImpl &
+GpuEngine::impl() {
+    return(*static_cast<GpuEngineImpl*>(this));
+}
 
 INL GpuEngineImpl *
 Scene::getOwner() {

@@ -3,8 +3,7 @@
 #include "artd/LightNode.h"
 #include "artd/Mutex.h"
 #include "artd/Material.h"
-
-#include "./MeshNode.h"
+#include "artd/MeshNode.h"
 
 
 ARTD_BEGIN

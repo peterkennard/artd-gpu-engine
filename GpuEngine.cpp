@@ -49,7 +49,7 @@
 #include "artd/GpuEngine-PanamaExports.h"
 #include "artd/Matrix4f.h"
 #include "artd/Color3f.h"
-#include "MeshNode.h"
+#include "artd/MeshNode.h"
 #include "DrawableMesh.h"
 #include "artd/pointer_math.h"
 #include "./FpsMonitor.h"
@@ -69,6 +69,30 @@ GpuEngine::GpuEngine()
 GpuEngine::~GpuEngine() {
 
 };
+
+GpuEngine &
+GpuEngine::getInstance() {
+    return(GpuEngineImpl::getInstance());
+}
+
+int GpuEngine::run() {
+    GpuEngineImpl &e = impl();
+    int ret = 0;
+
+    for(;;) {
+        ret = e.renderFrame();
+        if(ret != 0) {
+            break;
+        }
+    }
+    e.releaseResources();
+    return(ret);
+}
+
+void
+GpuEngine::setCurrentScene(ObjectPtr<Scene> scene) {
+    impl().setCurrentScene(scene);
+}
 
 //static void doNutin(void *addr) {
 //    if(!addr) {
@@ -703,12 +727,12 @@ int
 GpuEngineImpl::initScene() {
 
     currentScene_ = ObjectPtr<Scene>::make(this);
-    Scene *scene = currentScene_.get();
+    ObjectPtr<Scene>  scene = currentScene_;
 
     ObjectPtr<TransformNode> ringGroup = ObjectPtr<TransformNode>::make();
 
+    ObjectPtr<CameraNode> cameraNode = ObjectPtr<CameraNode>::make();
     {
-        ObjectPtr<CameraNode> cameraNode = ObjectPtr<CameraNode>::make();
         auto camera = ObjectBase::make<Camera>();
         // this could be cleaned up and done more automatically, but we will have diffent types of cameras !
         cameraNode->setCamera(camera);
@@ -824,7 +848,7 @@ GpuEngineImpl::initScene() {
             light->setDirection(Vec3f(0.5, .5, 0.1));
             light->setDiffuse(Color3f(1.f,1.f,1.f));
             light->setAreaWrap(.25);
-            currentScene_->addChild(light);
+            scene->addChild(light);
 
             // this rotates the light direction around the center of ths scene
             class AnimTask
@@ -856,7 +880,7 @@ GpuEngineImpl::initScene() {
                 }
                 float angle = 0.0;
             };
-            currentScene_->addAnimationTask(light, ObjectPtr<AnimTask>::make());
+            scene->addAnimationTask(light, ObjectPtr<AnimTask>::make());
         }
 
         // layout some objects in a ring around the ringGroup_ node
@@ -904,7 +928,7 @@ GpuEngineImpl::initScene() {
                     pMat->bindings_ = createMaterialBindGroup(*(pMat.get()));
                 }
             });
-            
+
             lt = glm::mat4(1.0);
             MeshNode *node = (MeshNode *)ringGroup->addChild(ObjectPtr<MeshNode>::make());
             node->setLocalTransform(lt);
@@ -922,7 +946,7 @@ GpuEngineImpl::initScene() {
                     float toggleTime = 2.1;
 
                     bool onAnimationTick(AnimationTaskContext &ac) override {
-                        
+
                         MeshNode *owner = (MeshNode *)ac.owner();
                         double dt = ac.timing().lastFrameDt();
 
@@ -934,7 +958,7 @@ GpuEngineImpl::initScene() {
 
                         rot = glm::rotate(rot, angle, glm::vec3(0,1.0,0));
                         rot = glm::rotate(rot, angle*2.5f, glm::normalize(glm::vec3(0,1.0,1.0)));
-                                
+
                         owner->setLocalTransform(rot);
 
                         toggleTime -= dt;
@@ -950,15 +974,42 @@ GpuEngineImpl::initScene() {
                                 toggleTime += 2.1;
                             }
                         }
-                        
                         return(true);
 
                     }
                     float angle = 0.0;
                 };
-                
-                currentScene_->addAnimationTask(node, ObjectPtr<AnimTask>::make());
+
+                scene->addAnimationTask(node, ObjectPtr<AnimTask>::make());
             }
+        }
+        {
+            ObjectPtr<DrawableMesh> mesh = meshLoader_->loadMesh("quad");
+            if (!mesh) {
+                return 1;
+            }
+
+            materials.push_back(ObjectBase::make<Material>(this));
+            auto pMat = materials[materials.size()-1];
+            pMat->setDiffuse(Color3f(0,0,0));
+            pMat->setEmissive(Color3f(1.f,1.f,1.f));
+
+            pMat->setDiffuseTex(pickerPass_->getTextureView());
+            pMat->bindings_ = createMaterialBindGroup(*(pMat.get()));
+
+            // face the camera
+            lt = cameraNode->getWorldPose();
+            lt[0] = -lt[0];
+            lt[2] = -lt[2];
+            lt[3] = { 3.1, 2.7, 0, 1 };
+
+            MeshNode *node = (MeshNode *)(scene->addChild(ObjectPtr<MeshNode>::make()));
+            node->setLocalTransform(lt);
+            node->setId(maxI + 12);
+            node->setMesh(mesh);
+            node->setMaterial(pMat);
+
+            AD_LOG(print) << "node is at " << node->getLocalToWorldTransform();
         }
     }
     return(0);
@@ -1145,6 +1196,7 @@ GpuEngineImpl::renderFrame()  {
             uniforms.projectionMatrix = camera->getProjection();
             uniforms.eyePose = camera->getPose(); // glm::inverse(camera->getView());
             uniforms.vpMatrix = uniforms.projectionMatrix * uniforms.viewMatrix;
+            uniforms.passType = SceneUniforms::PassTypeOpaque;
 
             uniforms.numLights = (uint32_t)currentScene_->lights_.size();
 
