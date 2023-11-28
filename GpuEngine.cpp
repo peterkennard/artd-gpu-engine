@@ -1036,9 +1036,9 @@ GpuEngineImpl::processEvents() {
     updateQueue_->executeEvents();
     return(true);
 }
-static void doBuf(size_t, Buffer) {
-    
-}
+//static void doBuf(size_t, Buffer) {
+//
+//}
 
 int
 GpuEngineImpl::renderFrame()  {
@@ -1112,7 +1112,7 @@ GpuEngineImpl::renderFrame()  {
         {
             Buffer iBuffer = instanceBuffer_->getBuffer();
             auto offset = instanceBuffer_->getStartOffset();
-            doBuf(offset,iBuffer);
+ //           doBuf(offset,iBuffer);
 
             int countLeft = (int)currentScene_->drawables_.size();
             // temp buffer to upload
@@ -1157,7 +1157,7 @@ GpuEngineImpl::renderFrame()  {
  
             Buffer iBuffer = uniformBuffer_->getBuffer();
             auto offset = uniformBuffer_->getStartOffset();
-            doBuf(offset,iBuffer);
+    //        doBuf(offset,iBuffer);
 
             uint8_t *outBytes = workBuffer.get();
             (*(SceneUniforms *)outBytes) = uniforms;
