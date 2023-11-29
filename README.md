@@ -1,2 +1,2 @@
 # artd-gpu-engine 
-## this is a module managed under the artd-build-root.  The build instructions shuld be in there
+## This is a module managed under the artd-build-root repository.  The build instructions should be in there.
