@@ -48,7 +48,7 @@ else()
 	)
 endif()
 
-target_link_libraries(artd-gpu-engine PRIVATE
+target_link_libraries(artd-gpu-engine PUBLIC
     artd-jlib-base
     artd-jlib-io
     artd-jlib-util

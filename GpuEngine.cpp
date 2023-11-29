@@ -70,9 +70,16 @@ GpuEngine::~GpuEngine() {
 
 };
 
-GpuEngine &
-GpuEngine::getInstance() {
-    return(GpuEngineImpl::getInstance());
+ObjectPtr<GpuEngine>
+GpuEngine::createInstance(bool headless, int width, int height) {
+    static ObjectPtr<GpuEngineImpl> hInstance = nullptr;
+    if(hInstance.get() == nullptr) {
+        GpuEngineImpl::getInstance(&hInstance);
+        /* auto ret = */ hInstance->init(headless, width, height);
+        return(hInstance);
+    }
+    AD_LOG(error) << "!!! you may only create one instance of the engine !!!";
+    return(nullptr);
 }
 
 int GpuEngine::run() {
@@ -332,7 +339,7 @@ GpuEngineImpl::init(bool headless, int width, int height) {
     instanceDescriptor.nextInChain = &dawnToggles.chain;
     
     
-    instance = createInstance(instanceDescriptor);
+    instance = wgpu::createInstance(instanceDescriptor);
     if (!instance) {
         AD_LOG(error) << "Could not initialize WebGPU!" << std::endl;
         return 1;
@@ -694,7 +701,9 @@ GpuEngineImpl::init(bool headless, int width, int height) {
         pMat->bindings_ = createMaterialBindGroup(*pMat);
     }
 
-    ret = initScene();
+    currentScene_ = ObjectPtr<Scene>::make(this);
+
+//    ret = initScene();
     AD_LOG(info) << "init complete !";
     timing_.init(0);
     return(ret);

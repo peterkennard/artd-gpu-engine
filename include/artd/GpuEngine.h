@@ -18,11 +18,9 @@ public:
     GpuEngine();
     ~GpuEngine();
 
-    static GpuEngine &getInstance();
-    virtual int init(bool headless, int width, int height) = 0;
+    static ObjectPtr<GpuEngine> createInstance(bool headless, int width, int height);
     void setCurrentScene(ObjectPtr<Scene> scene);
     int run();
-
 };
 
 

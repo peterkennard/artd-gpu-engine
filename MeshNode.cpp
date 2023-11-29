@@ -10,6 +10,7 @@ MeshNode::MeshNode() {
 
 MeshNode::~MeshNode() {
 }
+
 void
 MeshNode::setMaterial(ObjectPtr<Material> newMat) {
     material_ = newMat;
@@ -21,8 +22,19 @@ MeshNode::setMaterial(ObjectPtr<Material> newMat) {
     }
 }
 
-void MeshNode::setMesh(ObjectPtr<DrawableMesh> mesh) {
+void
+MeshNode::setMesh(ObjectPtr<DrawableMesh> mesh) {
     mesh_ = mesh;
+}
+
+void
+MeshNode::setMesh(StringArg resPath) {
+    AD_LOG(info) << " Mesh Path is " << resPath;
+    
+    GpuEngineImpl &e = GpuEngineImpl::getInstance();
+
+    ObjectPtr<DrawableMesh> mesh = e.meshLoader_->loadMesh(resPath);
+    setMesh(mesh);
 }
 
 void

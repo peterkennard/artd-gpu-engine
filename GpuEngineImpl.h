@@ -36,6 +36,7 @@ class MeshNode;
 class PickerPass;
 class TextureManager;
 class TextureManagerImpl;
+class Material;
 
 #define INL ARTD_ALWAYS_INLINE
 
@@ -87,6 +88,8 @@ protected:
     friend class GpuBufferManager;
     friend class CachedMeshLoader;
     friend class Scene;
+    friend class Material;
+    friend class MeshNode;
 
     bool headless_ = true;
     GLFWwindow* window = nullptr;
@@ -216,9 +219,6 @@ protected:
     ObjectPtr<Viewport> viewport_;
     ObjectPtr<CameraNode> defaultCamera_;
 
-    GpuEngineImpl();
-    ~GpuEngineImpl();
-
     /**
      * A structure that describes the data layout in the vertex buffer
      * We do not instantiate it but use it in `sizeof` and `offsetof`
@@ -231,10 +231,17 @@ protected:
 
 public:
 
-    static GpuEngineImpl &getInstance() {
-        static GpuEngineImpl wgpu;
-        return(wgpu);
+    GpuEngineImpl();
+    ~GpuEngineImpl();
+
+    static GpuEngineImpl &getInstance(ObjectPtr<GpuEngineImpl> *pInstance = nullptr) {
+        static ObjectPtr<GpuEngineImpl> instance = ObjectPtr<GpuEngineImpl>::make();
+        if(pInstance != nullptr) {
+            *pInstance = instance;
+        }
+        return(*(instance.get()));
     }
+
 protected:
 
     WaitableSignal pixelLockLock_;
@@ -257,7 +264,7 @@ protected:
 
 public:
 
-    int init(bool headless, int width, int height) override;
+    int init(bool headless, int width, int height);
     int renderFrame();
     INL const TimingContext &timing() const { return(timing_); }
     void releaseResources();
