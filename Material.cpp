@@ -4,8 +4,10 @@
 ARTD_BEGIN
 
 
-Material::Material(GpuEngine */*owner*/) {
+Material::Material(GpuEngine *owner) {
     std::memset(&data_,0,sizeof(data_));
+    GpuEngineImpl *e = static_cast<GpuEngineImpl*>(owner);
+    bindings_ = e->defaultMaterialBindGroup_;
 }
 
 Material::~Material() {
@@ -21,7 +23,7 @@ Material::setDiffuseTexture(StringArg resPath) {
     
     e->textureManager_->loadBindableTexture(resPath, [pMat,e](ObjectPtr<TextureView> tView) {
             pMat->setDiffuseTex(tView);
-            pMat->bindings_ = e->createMaterialBindGroup(*pMat);
+            pMat->bindings_ = e->createMaterialBindGroup(pMat);
         });
 }
 
