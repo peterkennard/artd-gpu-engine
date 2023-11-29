@@ -961,20 +961,64 @@ CachedMeshLoader::loadGeometry(const fs::path& path, std::vector<float>& pointDa
 //	return true;
 }
 
+
+class CachedMeshLoader::CachedMesh
+    : public DrawableMesh
+{
+    CachedMeshLoader *owner_;
+    const char *name_;
+public:
+    CachedMesh(CachedMeshLoader *owner, const char *name)
+        : owner_(owner)
+        , name_(name)
+    {
+    }
+    ~CachedMesh() {
+        if(owner_) {
+            owner_->onMeshDestroy(this);
+            owner_ = nullptr;
+        }
+    }
+    const char *getName() {
+        return(name_);
+    }
+};
+
+void
+CachedMeshLoader::onMeshDestroy(CachedMesh *mesh) {
+    auto found = cache_.find(RcString(mesh->getName()));
+    if(found != cache_.end()) {
+        cache_.erase(found);
+    }
+}
+
 ObjectPtr<DrawableMesh>
 CachedMeshLoader::loadMesh( StringArg pathName) {
 
+    RcString key(pathName);
+
+    MMapT::iterator found = cache_.find(key);
+    if(found != cache_.end()) {
+        WeakPtr<CachedMesh> &wp = found->second;
+        ObjectPtr<CachedMesh> op = wp.lock();
+        if(op) {
+            return(op);
+        }
+    }
+
+    ObjectPtr<CachedMesh> loaded = ObjectPtr<CachedMesh>::make(this,key.c_str());
+    cache_.emplace(key,WeakPtr<CachedMesh>(loaded));
+    
     std::vector<float> pointData;
     std::vector<uint16_t> indexData;
 
-    int ret = loadGeometry(pathName.c_str(), pointData, indexData);
+    int ret = loadGeometry(key.c_str(), pointData, indexData);
 
     if (!ret) {
         AD_LOG(info) << "Could not load geometry for " << pathName;
         return(nullptr);
     }
 
-    ObjectPtr<DrawableMesh> loaded = ObjectPtr<DrawableMesh>::make();
 
     loaded->indexCount_ = (int)indexData.size();
 

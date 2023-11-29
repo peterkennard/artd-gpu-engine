@@ -19,7 +19,7 @@ public:
     int indexCount_ = 0;
 
     DrawableMesh();
-    ~DrawableMesh();
+    virtual ~DrawableMesh();
 
     INL const BufferChunk &indices() const {
         return(*iChunk_);

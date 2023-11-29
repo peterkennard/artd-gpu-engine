@@ -11,7 +11,12 @@ Material::Material(GpuEngine *owner) {
 }
 
 Material::~Material() {
-
+    GpuEngineImpl *e = &GpuEngineImpl::getInstance();
+    if(bindings_ &&
+       (void *)bindings_ != (void*)(e->defaultMaterialBindGroup_))
+    {
+        bindings_.release();
+    }
 }
 
 void
@@ -19,7 +24,7 @@ Material::setDiffuseTexture(StringArg resPath) {
     GpuEngineImpl *e = &GpuEngineImpl::getInstance();
     Material *pMat = this;
     
-    // TODO: need to get a referenced poionter to this is async;
+    // TODO: need to get a referenced pointer to this if async;
     
     e->textureManager_->loadBindableTexture(resPath, [pMat,e](ObjectPtr<TextureView> tView) {
             pMat->setDiffuseTex(tView);

@@ -1,7 +1,9 @@
 #pragma once
 #include "artd/ResourceManager.h"
+#include "artd/RcString.h"
 #include <filesystem>
 #include <vector>
+#include <map>
 
 
 ARTD_BEGIN
@@ -15,8 +17,17 @@ class GpuEngineImpl;
 
 class CachedMeshLoader {
     GpuEngineImpl *owner_;
+
+    class CachedMesh;
+    friend class CachedMesh;
+
+    typedef std::map<RcString,WeakPtr<CachedMesh>>  MMapT;
+
+    MMapT cache_;
+protected:
+    void onMeshDestroy(CachedMesh *mesh);
 public:
-    
+
     INL GpuEngineImpl &owner() {
         return(*owner_);
     }
@@ -30,7 +41,8 @@ public:
     }
     bool loadGeometry(const fs::path& path, std::vector<float>& pointData, std::vector<uint16_t>& indexData, int dimensions = 0);
 
-    void asyncLoadMesh( StringArg pathName,  const std::function<void(ObjectPtr<DrawableMesh>)> &onDone);
+// TODO: we don't have this yet
+//    void asyncLoadMesh( StringArg pathName,  const std::function<void(ObjectPtr<DrawableMesh>)> &onDone);
 
     // direct loaded - not async.
     ObjectPtr<DrawableMesh> loadMesh( StringArg pathName);
