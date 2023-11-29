@@ -692,7 +692,7 @@ GpuEngineImpl::init(bool headless, int width, int height) {
         pixelUnLockLock_.signal(); // start enabled !!
     }
 
-    // create defaultMaterial
+    // create defaultMaterial and bind group to null texture
     {
         ObjectPtr<Material> mat = ObjectPtr<Material>::make(this);
         defaultMaterial_ = mat;
