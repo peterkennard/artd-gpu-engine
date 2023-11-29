@@ -219,16 +219,6 @@ protected:
     ObjectPtr<Viewport> viewport_;
     ObjectPtr<CameraNode> defaultCamera_;
 
-    /**
-     * A structure that describes the data layout in the vertex buffer
-     * We do not instantiate it but use it in `sizeof` and `offsetof`
-     */
-    struct VertexAttributes {
-        Vec3f position;
-        Vec3f normal;
-        glm::vec2 uv;
-    };
-
 public:
 
     GpuEngineImpl();
