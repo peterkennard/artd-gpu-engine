@@ -120,7 +120,7 @@ protected:
 
     wgpu::BindGroupLayout materialBindGroupLayout = nullptr;
 
-    wgpu::BindGroup createMaterialBindGroup(Material &forM);
+    wgpu::BindGroup createMaterialBindGroup(Material *forM);
 
     // global scene uniforms camera and lights, test data things constant for a single frame of animation/render.
     SceneUniforms uniforms;
@@ -210,6 +210,8 @@ protected:
     ObjectPtr<Scene> currentScene_;
 
     ObjectPtr<Material> defaultMaterial_;
+    wgpu::BindGroup defaultMaterialBindGroup_ = nullptr;
+
     INL ObjectPtr<Material> &getDefaultMaterial() {
         return(defaultMaterial_);
     }

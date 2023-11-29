@@ -698,7 +698,8 @@ GpuEngineImpl::init(bool headless, int width, int height) {
         defaultMaterial_ = mat;
         auto pMat = defaultMaterial_.get();
         pMat->setDiffuse(Color3f(30,30,30));
-        pMat->bindings_ = createMaterialBindGroup(*pMat);
+        pMat->bindings_ = createMaterialBindGroup(pMat);
+        defaultMaterialBindGroup_ = pMat->bindings_;
     }
     currentScene_ = ObjectPtr<Scene>::make(this);
 
@@ -708,9 +709,9 @@ GpuEngineImpl::init(bool headless, int width, int height) {
 }
 
 wgpu::BindGroup
-GpuEngineImpl::createMaterialBindGroup(Material &forM) {
+GpuEngineImpl::createMaterialBindGroup(Material *forM) {
 
-    TextureView *diffuse = forM.getDiffuseTexture().get();
+    TextureView *diffuse = forM->getDiffuseTexture().get();
     BindGroupEntry bindings[1];
 
     if(!diffuse) {
