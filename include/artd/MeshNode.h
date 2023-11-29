@@ -1,5 +1,6 @@
 #pragma once
 #include "artd/TransformNode.h"
+#include "artd/StringArg.h"
 
 
 ARTD_BEGIN
@@ -23,6 +24,8 @@ public:
     void loadInstanceData(InstanceData &data);
 
     void setMesh(ObjectPtr<DrawableMesh> mesh);
+    void setMesh(StringArg resourcePath);
+    
     DrawableMesh *getMesh() const { return(mesh_.get()); }
     void setMaterial(ObjectPtr<Material> newMat);
     INL ObjectPtr<Material> &getMaterial() {

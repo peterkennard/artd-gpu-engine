@@ -2,7 +2,7 @@
 
 #include "artd/ObjectBase.h"
 #include "artd/StringArg.h"
-#include "./Texture.h"
+#include "artd/Texture.h"
 
 ARTD_BEGIN
 

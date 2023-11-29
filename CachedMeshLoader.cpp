@@ -809,9 +809,9 @@ static void generateConeMesh(uint32_t numSegments, std::vector<float>& pointData
 	float vertData[] = {
 
 	//       position,             uv
-		-2.0f, -1.0f, 0.0f,   0.0f, 0.0f,
+		-1.0f, -1.0f, 0.0f,   0.0f, 0.0f,
 		1.0f, -1.0f, 0.0f,    1.0f, 0.0f,
-		-2.0f, 1.0f, 0.0f,    0.0f, 1.0f,
+		-1.0f, 1.0f, 0.0f,    0.0f, 1.0f,
 		1.0f, 1.0f, 0.0f,     1.0f, 1.0f,
 	};
 
@@ -824,7 +824,7 @@ static void generateConeMesh(uint32_t numSegments, std::vector<float>& pointData
     pointData.resize((sizeof(VertexData) / sizeof(float)) * 4);
     VertexData *pVertex =  reinterpret_cast<VertexData *>(pointData.data());
 
-    indexData.resize(triangleCount * sizeof(TriangleIndices));
+    indexData.resize(triangleCount * sizeof(TriangleIndices)/sizeof(indexData[0]));
     TriangleIndices *pIndex = reinterpret_cast<TriangleIndices*>(indexData.data());
 
     // todo a generator for rectangles.

@@ -49,7 +49,7 @@
 #include "artd/GpuEngine-PanamaExports.h"
 #include "artd/Matrix4f.h"
 #include "artd/Color3f.h"
-#include "MeshNode.h"
+#include "artd/MeshNode.h"
 #include "DrawableMesh.h"
 #include "artd/pointer_math.h"
 #include "./FpsMonitor.h"
@@ -69,6 +69,37 @@ GpuEngine::GpuEngine()
 GpuEngine::~GpuEngine() {
 
 };
+
+ObjectPtr<GpuEngine>
+GpuEngine::createInstance(bool headless, int width, int height) {
+    static ObjectPtr<GpuEngineImpl> hInstance = nullptr;
+    if(hInstance.get() == nullptr) {
+        GpuEngineImpl::getInstance(&hInstance);
+        /* auto ret = */ hInstance->init(headless, width, height);
+        return(hInstance);
+    }
+    AD_LOG(error) << "!!! you may only create one instance of the engine !!!";
+    return(nullptr);
+}
+
+int GpuEngine::run() {
+    GpuEngineImpl &e = impl();
+    int ret = 0;
+
+    for(;;) {
+        ret = e.renderFrame();
+        if(ret != 0) {
+            break;
+        }
+    }
+    e.releaseResources();
+    return(ret);
+}
+
+void
+GpuEngine::setCurrentScene(ObjectPtr<Scene> scene) {
+    impl().setCurrentScene(scene);
+}
 
 //static void doNutin(void *addr) {
 //    if(!addr) {
@@ -308,7 +339,7 @@ GpuEngineImpl::init(bool headless, int width, int height) {
     instanceDescriptor.nextInChain = &dawnToggles.chain;
     
     
-    instance = createInstance(instanceDescriptor);
+    instance = wgpu::createInstance(instanceDescriptor);
     if (!instance) {
         AD_LOG(error) << "Could not initialize WebGPU!" << std::endl;
         return 1;
@@ -669,8 +700,8 @@ GpuEngineImpl::init(bool headless, int width, int height) {
         pMat->setDiffuse(Color3f(30,30,30));
         pMat->bindings_ = createMaterialBindGroup(*pMat);
     }
+    currentScene_ = ObjectPtr<Scene>::make(this);
 
-    ret = initScene();
     AD_LOG(info) << "init complete !";
     timing_.init(0);
     return(ret);
@@ -695,273 +726,6 @@ GpuEngineImpl::createMaterialBindGroup(Material &forM) {
     bindGroupDesc.entries = bindings;
 
     return(device.createBindGroup(bindGroupDesc));
-}
-
-
-// TODO: load from some description or have something "initialize" it and set it.
-int
-GpuEngineImpl::initScene() {
-
-    currentScene_ = ObjectPtr<Scene>::make(this);
-    Scene *scene = currentScene_.get();
-
-    ObjectPtr<TransformNode> ringGroup = ObjectPtr<TransformNode>::make();
-
-    {
-        ObjectPtr<CameraNode> cameraNode = ObjectPtr<CameraNode>::make();
-        auto camera = ObjectBase::make<Camera>();
-        // this could be cleaned up and done more automatically, but we will have diffent types of cameras !
-        cameraNode->setCamera(camera);
-
-        glm::mat4 camPose(1.0);
-        camPose = glm::rotate(camPose, glm::pi<float>()/8, glm::vec3(1.0,0,0)); // glm::vec4(1.0,0,-3,1);
-        camPose = glm::translate(camPose, glm::vec3(0,1.0,-5.1));
-
-        cameraNode->setLocalTransform(camPose);
-
-        camera->setNearClip(0.01f);
-        camera->setFarClip(100.0f);
-        camera->setFocalLength(2.0);
-        scene->setCurrentCamera(cameraNode);
-    }
-
-    scene->addChild(ringGroup);
-    {
-        class AnimTask
-            : public AnimationTask
-        {
-        public:
-            bool onAnimationTick(AnimationTaskContext &ac) override {
-
-                TransformNode *owner = (TransformNode *)ac.owner();
-
-                // Matrix4f lt = ringGroup_->getLocalTransform();
-                Matrix4f lt = owner->getLocalTransform();
-
-                Matrix4f rot;
-                angle += ac.timing().lastFrameDt() * .01;
-                if( angle > (glm::pi<float>()*2)) {
-                    angle -= (glm::pi<float>()*2);
-                }
-
-                rot = glm::rotate(rot, -angle, glm::vec3(0,1.0,0));
-                lt[0] = rot[0];
-                lt[1] = rot[1];
-                lt[2] = rot[2];
-
-                owner->setLocalTransform(lt);
-
-                return(true);
-
-            }
-            float angle = 0.0;
-        };
-        scene->addAnimationTask(ringGroup, ObjectPtr<AnimTask>::make());
-    }
-
-    // this holds references until we assign them to drawable nodes;
-    // TODO: store by name in cache ? optional ?
-    // Currently unless referenced, when all objects with materials in them
-    // are deleted the material goes away too.
-    
-    std::vector<ObjectPtr<Material>> materials;
-
-    // initialize a scene (big hack)
-    {
-        // test colors
-        Color3f colors[] = {
-            { 36,133,234 },
-            { 177,20,31 },
-            { 203,205,195 },
-            { 152, 35, 24 },
-            { 154, 169, 153 },
-            { 179, 126, 64 },
-            { 50, 74, 84 },
-            { 226, 175, 105 }
-        };
-
-        for(int i = 0; i < (int)ARTD_ARRAY_LENGTH(colors); ++i) {
-            materials.push_back(ObjectPtr<Material>::make(this));
-            auto pMat = materials[materials.size()-1].get();
-            pMat->setDiffuse(colors[i]);
-            pMat->setShininess(.001);
-        }
-
-        // create/load two meshes cone and sphere
-
-        ObjectPtr<DrawableMesh> coneMesh = meshLoader_->loadMesh("cone");
-        if(!coneMesh) {
-            return(1);
-        }
-
-        ObjectPtr<DrawableMesh> sphereMesh = meshLoader_->loadMesh("sphere");
-        if (!sphereMesh) {
-            return 1;
-        }
-
-        // lay out a bunch of instances
-
-        Matrix4f lt(1.0);
-        
-        lt = glm::translate(lt, glm::vec3(0.0, 0.0, 3.0));
-        ringGroup->setLocalTransform(lt);
-        
-        AD_LOG(info) << lt;
-
-        
-        glm::mat4 drot(1.0);
-        drot = glm::rotate(drot, -glm::pi<float>()/6, glm::vec3(0,1.0,0)); // rotate about Y
-        
-        Vec3f trans = glm::vec3(0.0, 0.0, 3.5);
-
-        AD_LOG(info) << drot;
-
-        // Create some lights
-        
-        {
-            ObjectPtr<LightNode> light = ObjectPtr<LightNode>::make();
-            light->setLightType(LightNode::directional);
-            light->setDirection(Vec3f(0.5, .5, 0.1));
-            light->setDiffuse(Color3f(1.f,1.f,1.f));
-            light->setAreaWrap(.25);
-            currentScene_->addChild(light);
-
-            // this rotates the light direction around the center of ths scene
-            class AnimTask
-                : public AnimationTask
-            {
-            public:
-                bool onAnimationTick(AnimationTaskContext &ac) override {
-
-                    TransformNode *owner = (TransformNode *)ac.owner();
-
-                    // Matrix4f lt = ringGroup_->getLocalTransform();
-                    Matrix4f lt = owner->getLocalTransform();
-
-                    Matrix4f rot;
-                    angle += ac.timing().lastFrameDt() * .2;
-                    if( angle > (glm::pi<float>()*2)) {
-                        angle -= (glm::pi<float>()*2);
-                    }
-
-                    rot = glm::rotate(rot, -angle, glm::vec3(0,1.0,0));
-                    lt[0] = rot[0];
-                    lt[1] = rot[1];
-                    lt[2] = rot[2];
-
-                    owner->setLocalTransform(lt);
-
-                    return(true);
-
-                }
-                float angle = 0.0;
-            };
-            currentScene_->addAnimationTask(light, ObjectPtr<AnimTask>::make());
-        }
-
-        // layout some objects in a ring around the ringGroup_ node
-        // assign one of the test materials to it.
-        uint32_t materialId = 0;
-        uint32_t maxI = 12;
-        for(uint32_t i = 0; i < maxI; ++i)  {
-        
-            MeshNode *node = (MeshNode *)ringGroup->addChild(ObjectPtr<MeshNode>::make());
-            node->setId(i + 10);
-
-            lt = glm::mat4(1.0);
-            lt[3] = glm::vec4(trans,1.0);
-            node->setLocalTransform(lt);
-            trans = glm::mat3(drot) * trans;
-            
-            node->setMaterial(materials[materialId]);
-            if(++materialId >= materials.size()) {
-                materialId = 0;
-            }
-            
-            if((i & 1) != 0) {
-                node->setMesh(coneMesh);
-            } else {
-                node->setMesh(sphereMesh);
-            }
-        }
-
-        ObjectPtr<DrawableMesh> cubeMesh = meshLoader_->loadMesh("cube");
-        if (!cubeMesh) {
-            return 1;
-        }
-
-        {
-            materials.push_back(ObjectBase::make<Material>(this));
-            auto pMat = materials[materials.size()-1];
-            pMat->setDiffuse(Color3f(180,180,180));
-            pMat->setShininess(.001);
-
-            textureManager_->loadBindableTexture("test0", [this, pMat](ObjectPtr<TextureView> tView) {
-                if(pMat) {
-                    pMat->setDiffuseTex(tView);
-                    // todo: creating bindings should be automatic and handled internally
-                    // and triggered by modifying values.
-                    pMat->bindings_ = createMaterialBindGroup(*(pMat.get()));
-                }
-            });
-            
-            lt = glm::mat4(1.0);
-            MeshNode *node = (MeshNode *)ringGroup->addChild(ObjectPtr<MeshNode>::make());
-            node->setLocalTransform(lt);
-            node->setId(maxI + 10);
-            node->setMesh(cubeMesh);
-            node->setMaterial(pMat);
-
-            {
-                class AnimTask
-                    : public AnimationTask
-                {
-                public:
-
-                    bool highlit = false;
-                    float toggleTime = 2.1;
-
-                    bool onAnimationTick(AnimationTaskContext &ac) override {
-                        
-                        MeshNode *owner = (MeshNode *)ac.owner();
-                        double dt = ac.timing().lastFrameDt();
-
-                        Matrix4f rot;
-                        angle += dt * .1;
-                        if( angle > (glm::pi<float>()*2)) {
-                            angle -= (glm::pi<float>()*2);
-                        }
-
-                        rot = glm::rotate(rot, angle, glm::vec3(0,1.0,0));
-                        rot = glm::rotate(rot, angle*2.5f, glm::normalize(glm::vec3(0,1.0,1.0)));
-                                
-                        owner->setLocalTransform(rot);
-
-                        toggleTime -= dt;
-                        if(toggleTime < 0)  {
-                            Material *mat = owner->getMaterial().get();
-                            highlit = !highlit;
-                            if(highlit)  {
-                                mat->setEmissive(Color3f(1.f,1.f,1.f));
-                                toggleTime = .2;
-                            } else {
-                                mat->setEmissive(Color3f(0,0,0));
-//                                mat->setDiffuse(Color3f(180,180,180));
-                                toggleTime += 2.1;
-                            }
-                        }
-                        
-                        return(true);
-
-                    }
-                    float angle = 0.0;
-                };
-                
-                currentScene_->addAnimationTask(node, ObjectPtr<AnimTask>::make());
-            }
-        }
-    }
-    return(0);
 }
 
 void
@@ -1145,6 +909,7 @@ GpuEngineImpl::renderFrame()  {
             uniforms.projectionMatrix = camera->getProjection();
             uniforms.eyePose = camera->getPose(); // glm::inverse(camera->getView());
             uniforms.vpMatrix = uniforms.projectionMatrix * uniforms.viewMatrix;
+            uniforms.passType = SceneUniforms::PassTypeOpaque;
 
             uniforms.numLights = (uint32_t)currentScene_->lights_.size();
 

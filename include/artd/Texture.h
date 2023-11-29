@@ -19,6 +19,10 @@ protected:
     wgpu::Texture tex_;
     Texture();
 public:
+    // note this takes ownership of the wgpu::texture
+    Texture(wgpu::Texture tex) : tex_(tex)
+    {}
+
     virtual ~Texture();
     virtual const char *getName();
 
@@ -31,14 +35,13 @@ public:
 class TextureView
 {
 protected:
+    wgpu::TextureView view_;
+    ObjectPtr<artd::Texture> viewed_;
+public:
     INL TextureView(wgpu::TextureView view, ObjectPtr<artd::Texture> t)
         : view_(view)
         , viewed_(t)
     {}
-    
-    wgpu::TextureView view_;
-    ObjectPtr<artd::Texture> viewed_;
-public:
     INL wgpu::TextureView getView() const {
         return(view_);
     }

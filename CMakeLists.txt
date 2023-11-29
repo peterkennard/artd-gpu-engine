@@ -48,7 +48,7 @@ else()
 	)
 endif()
 
-target_link_libraries(artd-gpu-engine PRIVATE
+target_link_libraries(artd-gpu-engine PUBLIC
     artd-jlib-base
     artd-jlib-io
     artd-jlib-util
@@ -67,6 +67,13 @@ target_treat_all_warnings_as_errors(artd-gpu-engine)
 
 add_executable(ArtdGpuEngineTest
 	main.cpp
+)
+
+#TODO: bit of hack to get include files into this target
+target_include_directories(ArtdGpuEngineTest PRIVATE
+    ${CMAKE_BINARY_DIR}/_deps/webgpu-backend-dawn-src/include
+    ${CMAKE_BINARY_DIR}/_deps/dawn-src/include
+    ${CMAKE_BINARY_DIR}/_deps/dawn-build/gen/include
 )
 
 target_link_libraries(ArtdGpuEngineTest PRIVATE artd-gpu-engine)

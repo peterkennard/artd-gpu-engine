@@ -34,7 +34,7 @@ class ARTD_API_GPU_ENGINE Material
     }
 
 public:
-    Material(GpuEngineImpl *owner);
+    Material(GpuEngine *owner);
     ~Material();
 
     INL int32_t getIndex() {
@@ -59,6 +59,8 @@ public:
     INL void setDiffuseTex(ObjectPtr<TextureView> tView) {
         diffuseTex_ = tView;
     }
+
+    void setDiffuseTexture(StringArg resPath);
 
     INL wgpu::BindGroup &getBindings() {
         return(bindings_);

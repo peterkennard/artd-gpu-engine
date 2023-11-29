@@ -36,6 +36,7 @@ class MeshNode;
 class PickerPass;
 class TextureManager;
 class TextureManagerImpl;
+class Material;
 
 #define INL ARTD_ALWAYS_INLINE
 
@@ -48,10 +49,16 @@ struct SceneUniforms {
     float test[16];
     float time;
 
+    uint32_t passType;
     uint32_t numLights;
-    float _pad[2];
+    float _pad[1];
 
     static const int MaxLights = 64;
+
+    static const uint32_t PassTypeOpaque = 0;
+    static const uint32_t PassTypeTransparency = 1;
+    static const uint32_t PassTypePick = 2;
+
 };
 
 // Have the compiler check byte alignment
@@ -81,6 +88,8 @@ protected:
     friend class GpuBufferManager;
     friend class CachedMeshLoader;
     friend class Scene;
+    friend class Material;
+    friend class MeshNode;
 
     bool headless_ = true;
     GLFWwindow* window = nullptr;
@@ -200,8 +209,6 @@ protected:
 
     ObjectPtr<Scene> currentScene_;
 
-    int initScene();
-
     ObjectPtr<Material> defaultMaterial_;
     INL ObjectPtr<Material> &getDefaultMaterial() {
         return(defaultMaterial_);
@@ -209,9 +216,6 @@ protected:
 
     ObjectPtr<Viewport> viewport_;
     ObjectPtr<CameraNode> defaultCamera_;
-
-    GpuEngineImpl();
-    ~GpuEngineImpl();
 
     /**
      * A structure that describes the data layout in the vertex buffer
@@ -225,10 +229,17 @@ protected:
 
 public:
 
-    static GpuEngineImpl &getInstance() {
-        static GpuEngineImpl wgpu;
-        return(wgpu);
+    GpuEngineImpl();
+    ~GpuEngineImpl();
+
+    static GpuEngineImpl &getInstance(ObjectPtr<GpuEngineImpl> *pInstance = nullptr) {
+        static ObjectPtr<GpuEngineImpl> instance = ObjectPtr<GpuEngineImpl>::make();
+        if(pInstance != nullptr) {
+            *pInstance = instance;
+        }
+        return(*(instance.get()));
     }
+
 protected:
 
     WaitableSignal pixelLockLock_;
@@ -259,8 +270,16 @@ public:
     int getPixels(uint32_t *pBuf);
     const int *lockPixels(int timeoutMillis);
     void unlockPixels();
+    void setCurrentScene(ObjectPtr<Scene> scene) {
+        currentScene_ = scene;
+    }
+
 };
 
+INL GpuEngineImpl &
+GpuEngine::impl() {
+    return(*static_cast<GpuEngineImpl*>(this));
+}
 
 INL GpuEngineImpl *
 Scene::getOwner() {

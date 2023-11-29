@@ -28,9 +28,9 @@ struct SceneUniforms {
     eyePose:  mat4x4f, // orientation of camera.
     test: mat4x4f,
     time: f32,
+    passType: u32,  // 0 opaque, 1 transparency, 3 ID pick
     numLights: u32,
     pad1: f32,
-    pad2: f32,
     lights: array<LightData,64>
 };
 
