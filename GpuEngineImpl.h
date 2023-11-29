@@ -209,8 +209,6 @@ protected:
 
     ObjectPtr<Scene> currentScene_;
 
-    int initScene();
-
     ObjectPtr<Material> defaultMaterial_;
     INL ObjectPtr<Material> &getDefaultMaterial() {
         return(defaultMaterial_);

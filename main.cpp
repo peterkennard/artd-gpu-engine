@@ -233,7 +233,6 @@ using namespace artd;
                                 toggleTime = .2;
                             } else {
                                 mat->setEmissive(Color3f(0,0,0));
-//                                mat->setDiffuse(Color3f(180,180,180));
                                 toggleTime += 2.1;
                             }
                         }
