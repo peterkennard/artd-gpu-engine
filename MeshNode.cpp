@@ -1,5 +1,5 @@
 #include "artd/MeshNode.h"
-#include "DrawableMesh.h"
+#include "artd/DrawableMesh.h"
 #include "./GpuEngineImpl.h"
 
 ARTD_BEGIN

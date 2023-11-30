@@ -1,5 +1,5 @@
 #include "./GpuEngineImpl.h"
-#include "./DrawableMesh.h"
+#include "artd/DrawableMesh.h"
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -1008,9 +1008,6 @@ CachedMeshLoader::loadMesh( StringArg pathName) {
         }
     }
 
-    ObjectPtr<CachedMesh> loaded = ObjectPtr<CachedMesh>::make(this,key.c_str());
-    cache_.emplace(key,WeakPtr<CachedMesh>(loaded));
-    
     std::vector<float> pointData;
     std::vector<uint16_t> indexData;
 
@@ -1021,6 +1018,8 @@ CachedMeshLoader::loadMesh( StringArg pathName) {
         return(nullptr);
     }
 
+    ObjectPtr<CachedMesh> loaded = ObjectPtr<CachedMesh>::make(this,key.c_str());
+    cache_.emplace(key,WeakPtr<CachedMesh>(loaded));
 
     loaded->indexCount_ = (int)indexData.size();
 
@@ -1035,8 +1034,14 @@ CachedMeshLoader::createMesh(const DrawableMeshDescriptor &desc) {
     // cludge for generating names for un-named meshes.
     static int id = 0;
 
-    RcString key = RcString::format("_mesh-%d_", id);
-    ++id;
+    RcString key;
+    if(desc.cacheName) {
+        key = desc.cacheName;
+    } else {
+        key = RcString::format("_mesh-%d_", id);
+        ++id;
+    }
+    
     if(desc.vertexCount == 0 || desc.indexCount == 0 || desc.vertices == nullptr || desc.indices == nullptr) {
         AD_LOG(error) << "invalid values in MeshDescriptor!";
         return(nullptr);
@@ -1051,9 +1056,12 @@ CachedMeshLoader::createMesh(const DrawableMeshDescriptor &desc) {
     ObjectPtr<CachedMesh> loaded = ObjectPtr<CachedMesh>::make(this,key.c_str());
     cache_.emplace(key,WeakPtr<CachedMesh>(loaded));
 
+    const float *vertices = (float*)(desc.vertices);
+    uint32_t vertexCount = desc.vertexCount * GpuVertexAttributes::floatsPerVertex();
+    
     loaded->indexCount_ = (int)(desc.indexCount);
     loaded->iChunk_ = owner().bufferManager_->allocIndexChunk(desc.indexCount, desc.indices);
-    loaded->vChunk_ = owner().bufferManager_->allocVertexChunk(desc.vertexCount, desc.vertices );
+    loaded->vChunk_ = owner().bufferManager_->allocVertexChunk(vertexCount, vertices );
 
     return(loaded);
 }

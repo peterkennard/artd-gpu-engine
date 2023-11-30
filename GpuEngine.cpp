@@ -50,7 +50,7 @@
 #include "artd/Matrix4f.h"
 #include "artd/Color3f.h"
 #include "artd/MeshNode.h"
-#include "DrawableMesh.h"
+#include "artd/DrawableMesh.h"
 #include "artd/pointer_math.h"
 #include "./FpsMonitor.h"
 #include "./PickerPass.h"
@@ -99,6 +99,11 @@ int GpuEngine::run() {
 void
 GpuEngine::setCurrentScene(ObjectPtr<Scene> scene) {
     impl().setCurrentScene(scene);
+}
+
+ObjectPtr<DrawableMesh>
+GpuEngine::createMesh(const DrawableMeshDescriptor &desc) {
+    return(impl().meshLoader()->createMesh(desc));
 }
 
 //static void doNutin(void *addr) {

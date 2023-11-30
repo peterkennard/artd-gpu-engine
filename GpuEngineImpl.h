@@ -75,17 +75,6 @@ static_assert(sizeof(InstanceData) % 16 == 0);
 
 using namespace wgpu;
 
-class DrawableMeshDescriptor {
-public:
-    DrawableMeshDescriptor() {
-        ::memset(this,0,sizeof(*this));
-    }
-    float *vertices;    // note this is NOT a structure !!
-    uint32_t vertexCount;
-    uint16_t *indices;  // for triangles ( all we support now ) 3 per triangle
-    uint32_t indexCount;  // count of indices in index buffer
-};
-
 // was through step030 of webgpu tutorial
 
 class GpuEngineImpl

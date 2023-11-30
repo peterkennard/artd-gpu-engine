@@ -1,11 +1,9 @@
 #pragma once
 #include "artd/TransformNode.h"
-#include <webgpu/webgpu.hpp>
-#include "artd/GpuBufferManager.h"
 
 ARTD_BEGIN
 
-using namespace wgpu;
+class BufferChunk;
 
 #define INL ARTD_ALWAYS_INLINE
 
@@ -33,8 +31,6 @@ public:
     INL int indexCount() const {
         return(indexCount_);
     }
-    
-
 };
 
 #undef INL

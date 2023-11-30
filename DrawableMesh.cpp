@@ -1,4 +1,5 @@
-#include "DrawableMesh.h"
+#include "artd/DrawableMesh.h"
+#include "artd/GpuBufferManager.h"
 
 ARTD_BEGIN
 
