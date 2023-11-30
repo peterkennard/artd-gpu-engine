@@ -980,7 +980,7 @@ public:
             owner_->onMeshDestroy(this);
             owner_ = nullptr;
         }
-    } 
+    }
     const char *getName() const {
         return(name_);
     }
@@ -1052,8 +1052,8 @@ CachedMeshLoader::createMesh(const DrawableMeshDescriptor &desc) {
     cache_.emplace(key,WeakPtr<CachedMesh>(loaded));
 
     loaded->indexCount_ = (int)(desc.indexCount);
-    loaded->iChunk_ = owner().bufferManager_->allocIndexChunk((int)desc.indexCount, desc.indices);
-    loaded->vChunk_ = owner().bufferManager_->allocVertexChunk((int)desc.vertexCount, desc.vertices );
+    loaded->iChunk_ = owner().bufferManager_->allocIndexChunk(desc.indexCount, desc.indices);
+    loaded->vChunk_ = owner().bufferManager_->allocVertexChunk(desc.vertexCount, desc.vertices );
 
     return(loaded);
 }
