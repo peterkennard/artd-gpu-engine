@@ -207,6 +207,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 */
     } else {
         diffColor = material.diffuse;
+        emitColor = diffColor *  material.emissive.xyz;
     }
 
 	var color = diffColor * diffuseMult + emitColor + specularMult; // shading;
