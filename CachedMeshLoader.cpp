@@ -14,14 +14,16 @@ ARTD_BEGIN
 
 namespace fs = std::filesystem;
 
-// just for now
-struct VertexData {
-    Vec3f pos;
-    Vec3f normal;
-    glm::vec2 uv;
-//    float pad_;
-//    float pad2_;
-};
+typedef GpuVertexAttributes VertexData;
+
+//// just for now
+//struct VertexData {
+//    Vec3f pos;
+//    Vec3f normal;
+//    glm::vec2 uv;
+////    float pad_;
+////    float pad2_;
+//};
 
 #pragma pack(2)
 struct TriangleIndices {
@@ -343,9 +345,9 @@ static void generateSimpleCubeMesh(std::vector<float>& pointData,
 
 	for (int i = 0; i < vertexCount; i += 8) {
 
-		pVertex->pos.x = pData[0] * extent;
-		pVertex->pos.y = pData[1] * extent;
-		pVertex->pos.z = pData[2] * extent;
+		pVertex->position.x = pData[0] * extent;
+		pVertex->position.y = pData[1] * extent;
+		pVertex->position.z = pData[2] * extent;
 
 		pVertex->normal.x = pData[3];
 		pVertex->normal.y = pData[4];
@@ -386,7 +388,7 @@ public:
 
     int addVertex(const Vec3f &point)  {
         currVert = &verts[vertCount];
-        currVert->pos = point;
+        currVert->position = point;
         int ret = vertCount;
         ++vertCount;
         return(ret);
@@ -414,7 +416,7 @@ public:
     
     void projectToUnitSphere(bool setNormals) {
         for(int i = 0; i < vertCount; ++i) {
-            Vec3f &v = verts[i].pos;
+            Vec3f &v = verts[i].position;
             v = glm::normalize(v);
             if(setNormals) {
                 verts[i].normal = v;
@@ -833,9 +835,9 @@ static void generateConeMesh(uint32_t numSegments, std::vector<float>& pointData
 
     for (int i = 0; i < vertexCount; ++i) {
 
-        pVertex->pos.x = pData[0] * xExtent;
-        pVertex->pos.y = pData[1] * yExtent;
-        pVertex->pos.z = pData[2];
+        pVertex->position.x = pData[0] * xExtent;
+        pVertex->position.y = pData[1] * yExtent;
+        pVertex->position.z = pData[2];
 
         pVertex->normal.x = 0.0;
         pVertex->normal.y = 0.0;
@@ -978,8 +980,8 @@ public:
             owner_->onMeshDestroy(this);
             owner_ = nullptr;
         }
-    }
-    const char *getName() {
+    } 
+    const char *getName() const {
         return(name_);
     }
 };
@@ -1026,5 +1028,35 @@ CachedMeshLoader::loadMesh( StringArg pathName) {
     loaded->vChunk_ = owner().bufferManager_->allocVertexChunk((int)pointData.size(), pointData.data());
     return(loaded);
 }
+
+ObjectPtr<DrawableMesh>
+CachedMeshLoader::createMesh(const DrawableMeshDescriptor &desc) {
+
+    // cludge for generating names for un-named meshes.
+    static int id = 0;
+
+    RcString key = RcString::format("_mesh-%d_", id);
+    ++id;
+    if(desc.vertexCount == 0 || desc.indexCount == 0 || desc.vertices == nullptr || desc.indices == nullptr) {
+        AD_LOG(error) << "invalid values in MeshDescriptor!";
+        return(nullptr);
+    }
+
+    MMapT::iterator found = cache_.find(key);
+    if(found != cache_.end()) {
+        AD_LOG(error) << "mesh \"" << key << "\" already in use!";
+        return(nullptr);
+    }
+
+    ObjectPtr<CachedMesh> loaded = ObjectPtr<CachedMesh>::make(this,key.c_str());
+    cache_.emplace(key,WeakPtr<CachedMesh>(loaded));
+
+    loaded->indexCount_ = (int)(desc.indexCount);
+    loaded->iChunk_ = owner().bufferManager_->allocIndexChunk((int)desc.indexCount, desc.indices);
+    loaded->vChunk_ = owner().bufferManager_->allocVertexChunk((int)desc.vertexCount, desc.vertices );
+
+    return(loaded);
+}
+
 
 ARTD_END

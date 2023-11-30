@@ -20,6 +20,7 @@ public:
 
     DrawableMesh();
     virtual ~DrawableMesh();
+    virtual const char *getName() const = 0;
 
     INL const BufferChunk &indices() const {
         return(*iChunk_);
@@ -32,6 +33,7 @@ public:
     INL int indexCount() const {
         return(indexCount_);
     }
+    
 
 };
 

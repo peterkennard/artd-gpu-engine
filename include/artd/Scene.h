@@ -106,6 +106,10 @@ protected:
 public:
 
     Scene(GpuEngine *owner);
+    INL Scene(ObjectPtr<GpuEngine> owner)
+        : Scene(owner.get())
+    {}
+
     virtual ~Scene();
 
     // add a child to the root of the scene graph.

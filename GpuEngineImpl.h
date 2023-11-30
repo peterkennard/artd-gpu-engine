@@ -73,9 +73,18 @@ struct InstanceData  {
 
 static_assert(sizeof(InstanceData) % 16 == 0);
 
-
-
 using namespace wgpu;
+
+class DrawableMeshDescriptor {
+public:
+    DrawableMeshDescriptor() {
+        ::memset(this,0,sizeof(*this));
+    }
+    float *vertices;    // note this is NOT a structure !!
+    uint32_t vertexCount;
+    uint16_t *indices;  // for triangles ( all we support now ) 3 per triangle
+    uint32_t indexCount;  // count of indices in index buffer
+};
 
 // was through step030 of webgpu tutorial
 
@@ -102,7 +111,7 @@ protected:
     wgpu::Instance instance = nullptr;
     wgpu::Surface surface = nullptr;
     wgpu::Adapter adapter = nullptr;
-    wgpu::Device device = nullptr;
+    wgpu::Device device_ = nullptr;
 
     std::unique_ptr<wgpu::ErrorCallback> errorCallback_;
     std::unique_ptr<wgpu::DeviceLostCallback> deviceLostCallback_;
@@ -141,12 +150,28 @@ protected:
     ObjectPtr<CachedMeshLoader> meshLoader_;
     ObjectPtr<ShaderManager>    shaderManager_;
 
+public:
+
+    // this for access in Pool test module
+    INL CachedMeshLoader *meshLoader() {
+        return(meshLoader_.get());
+    }
+    INL GpuBufferManager *bufferManager() {
+        return(bufferManager_.get());
+    }
+    INL wgpu::Device device() {
+        return(device_);
+    }
+
+protected:
+
+
     // there won't be too many of these ?? they are aligned 128 bits !!
     ObjectPtr<BufferChunk>      uniformBuffer_;
     ObjectPtr<BufferChunk>      instanceBuffer_;
     ObjectPtr<BufferChunk>      materialBuffer_;
 
-    bool freezeAnimation_ = false;
+    bool freezeAnimation_ = false;  // unused at present
     
     class RenderTimingContext
         : public TimingContext

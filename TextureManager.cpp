@@ -20,7 +20,7 @@ class TextureManagerImpl
     GpuEngineImpl &owner_;
     
     INL wgpu::Device &device() {
-        return(owner_.device);
+        return(owner_.device_);
     }
     class CachedTexture;
     

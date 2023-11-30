@@ -25,7 +25,7 @@ static_assert(sizeof(MaterialShaderData) % 16 == 0);
 class GpuEngineImpl;
 
 class ARTD_API_GPU_ENGINE Material
-    : public DlNode  // for attaching to scene material list
+    : public DlNode  // for attaching to scene's material list
 {
     friend class GpuEngineImpl;
 
@@ -35,6 +35,11 @@ class ARTD_API_GPU_ENGINE Material
 
 public:
     Material(GpuEngine *owner);
+    // convenience for now.
+    INL Material(ObjectPtr<GpuEngine> owner)
+        : Material(owner.get())
+    {}
+
     ~Material();
 
     INL int32_t getIndex() {

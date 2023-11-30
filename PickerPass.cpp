@@ -8,7 +8,7 @@ ARTD_BEGIN
 #define INL ARTD_ALWAYS_INLINE
 
 PickerPass::PickerPass(GpuEngineImpl *owner)
-    : owner_(*owner), device_(owner->device)
+    : owner_(*owner), device_(owner->device())
 {
 	using namespace wgpu;
 

@@ -14,6 +14,7 @@ namespace fs = std::filesystem;
 
 class DrawableMesh;
 class GpuEngineImpl;
+class DrawableMeshDescriptor;
 
 class CachedMeshLoader {
     GpuEngineImpl *owner_;
@@ -39,13 +40,14 @@ public:
 
     ~CachedMeshLoader() {
     }
-    bool loadGeometry(const fs::path& path, std::vector<float>& pointData, std::vector<uint16_t>& indexData, int dimensions = 0);
+    bool loadGeometry(const fs::path& path, std::vector<float>& pointData,      std::vector<uint16_t>& indexData, int dimensions = 0);
 
 // TODO: we don't have this yet
 //    void asyncLoadMesh( StringArg pathName,  const std::function<void(ObjectPtr<DrawableMesh>)> &onDone);
 
     // direct loaded - not async.
     ObjectPtr<DrawableMesh> loadMesh( StringArg pathName);
+    ObjectPtr<DrawableMesh> createMesh(const DrawableMeshDescriptor &desc);
 };
 
 #undef INL

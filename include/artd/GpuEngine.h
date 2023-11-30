@@ -9,21 +9,21 @@ ARTD_BEGIN
 class GpuEngineImpl;
 class Scene;
 
+/**
+ * A structure that describes one of the data layouts in the vertex buffer
+ */
+#pragma pack(push,4) // this is often the default
+    struct GpuVertexAttributes {
+        Vec3f position;
+        Vec3f normal;
+        glm::vec2 uv;
+    };
+#pragma pack(pop)
+
 class ARTD_API_GPU_ENGINE GpuEngine
     : public ObjectBase
 {
 public:
-    /**
-     * A structure that describes one of the data layouts in the vertex buffer
-     */
-    #pragma pack(push,4) // this is often the default
-        struct VertexAttributes {
-            Vec3f position;
-            Vec3f normal;
-            glm::vec2 uv;
-        };
-    #pragma pack(pop)
-
 
     GpuEngineImpl &impl();
 

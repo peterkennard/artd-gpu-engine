@@ -163,7 +163,7 @@ GpuEngineImpl::releaseResources() {
         meshLoader_ = nullptr;
         bufferManager_->shutdown();
 
-        device.release();
+        device_.release();
         adapter.release();
         instance.release();
         instance = nullptr;
@@ -177,7 +177,7 @@ GpuEngineImpl::releaseResources() {
 int
 GpuEngineImpl::initSwapChain(int width, int height) {
 
-    queue = device.getQueue();
+    queue = device().getQueue();
     swapChainFormat_ = TextureFormat::BGRA8Unorm;
 
     if(headless_) {
@@ -199,7 +199,7 @@ GpuEngineImpl::initSwapChain(int width, int height) {
         targetTextureDesc.usage = TextureUsage::RenderAttachment | TextureUsage::CopySrc;
         targetTextureDesc.viewFormats = nullptr;
         targetTextureDesc.viewFormatCount = 0;
-        targetTexture = device.createTexture(targetTextureDesc);
+        targetTexture = device().createTexture(targetTextureDesc);
 
         TextureViewDescriptor targetTextureViewDesc;
         targetTextureViewDesc.label = "Render texture view";
@@ -225,7 +225,7 @@ GpuEngineImpl::initSwapChain(int width, int height) {
         swapChainDesc.usage = TextureUsage::RenderAttachment;
         swapChainDesc.format = swapChainFormat_;
         swapChainDesc.presentMode = PresentMode::Fifo;
-        swapChain = device.createSwapChain(surface, swapChainDesc);
+        swapChain = device().createSwapChain(surface, swapChainDesc);
         AD_LOG(info) << "Swapchain created " << swapChain;
     }
     width_ = width;
@@ -258,7 +258,7 @@ GpuEngineImpl::initDepthBuffer() {
     depthTextureDesc.viewFormatCount = 1;
     depthTextureDesc.viewFormats = (WGPUTextureFormat*)&depthTextureFormat_;
     AD_LOG(info) << "Creating Depth texture";
-    depthTexture = device.createTexture(depthTextureDesc);
+    depthTexture = device().createTexture(depthTextureDesc);
     AD_LOG(info) << "Depth texture: " << depthTexture;
 
 	// Create the view of the depth texture manipulated by the rasterizer
@@ -373,9 +373,9 @@ GpuEngineImpl::init(bool headless, int width, int height) {
     requiredLimits.limits.maxVertexAttributes = 3;
     //                                          ^ This was a 2
     requiredLimits.limits.maxVertexBuffers = 1;  // max here is 8 TODO: we need the buffer namager to split these up !
-    requiredLimits.limits.maxBufferSize = 256 * sizeof(VertexAttributes);
+    requiredLimits.limits.maxBufferSize = 256 * sizeof(GpuVertexAttributes);
     
-    requiredLimits.limits.maxVertexBufferArrayStride = sizeof(VertexAttributes) * 2;  // cx ? does bigger hurt
+    requiredLimits.limits.maxVertexBufferArrayStride = sizeof(GpuVertexAttributes) * 2;  // cx ? does bigger hurt
     
     requiredLimits.limits.minStorageBufferOffsetAlignment = supportedLimits.limits.minStorageBufferOffsetAlignment;
     requiredLimits.limits.minUniformBufferOffsetAlignment = supportedLimits.limits.minUniformBufferOffsetAlignment;
@@ -399,17 +399,17 @@ GpuEngineImpl::init(bool headless, int width, int height) {
     
     deviceDesc.requiredLimits = &requiredLimits;
     deviceDesc.defaultQueue.label = "The default queue";
-    device = adapter.requestDevice(deviceDesc);
-    AD_LOG(info) << "Got device: " << device;
+    device_ = adapter.requestDevice(deviceDesc);
+    AD_LOG(info) << "Got device: " << device_;
         
     // Add an error callback for more debug info
-    errorCallback_ = GpuErrorHandler::initErrorCallback(device);
+    errorCallback_ = GpuErrorHandler::initErrorCallback(device_);
 
-    deviceLostCallback_ = device.setDeviceLostCallback([](DeviceLostReason /*reason*/, char const * /*message*/) {
+    deviceLostCallback_ = device_.setDeviceLostCallback([](DeviceLostReason /*reason*/, char const * /*message*/) {
     });
 
     
-    shaderManager_ = ObjectPtr<ShaderManager>::make(device);
+    shaderManager_ = ObjectPtr<ShaderManager>::make(device_);
     resourceManager_ = ResourceManager::create();
     textureManager_ = TextureManager::create(this);
 
@@ -444,17 +444,17 @@ GpuEngineImpl::init(bool headless, int width, int height) {
     // Normal attribute
     vertexAttribs[1].shaderLocation = 1;
     vertexAttribs[1].format = VertexFormat::Float32x3;
-    vertexAttribs[1].offset = offsetof(VertexAttributes, normal);
+    vertexAttribs[1].offset = offsetof(GpuVertexAttributes, normal);
     
     // UV attribute
     vertexAttribs[2].shaderLocation = 2;
     vertexAttribs[2].format = VertexFormat::Float32x2;
-    vertexAttribs[2].offset = offsetof(VertexAttributes, uv);
+    vertexAttribs[2].offset = offsetof(GpuVertexAttributes, uv);
     
     VertexBufferLayout vertexBufferLayout;
     vertexBufferLayout.attributeCount = vertexAttribs.size();
     vertexBufferLayout.attributes = vertexAttribs.data();
-    vertexBufferLayout.arrayStride = sizeof(VertexAttributes);
+    vertexBufferLayout.arrayStride = sizeof(GpuVertexAttributes);
     vertexBufferLayout.stepMode = VertexStepMode::Vertex;
     
     pipelineDesc.vertex.bufferCount = 1;
@@ -561,12 +561,12 @@ GpuEngineImpl::init(bool headless, int width, int height) {
     BindGroupLayoutDescriptor bindGroupLayoutDesc{};
     bindGroupLayoutDesc.entryCount = 4; // todo take from data struct
     bindGroupLayoutDesc.entries =  bindingLayouts;
-    BindGroupLayout bindGroupLayout = device.createBindGroupLayout(bindGroupLayoutDesc);
+    BindGroupLayout bindGroupLayout = device().createBindGroupLayout(bindGroupLayoutDesc);
 
 // create bind group layout for texture !
 #ifdef WEBGPU_BACKEND_DAWN
         // Check for pending error callbacks
-        device.tick();
+        device_.tick();
 #endif
 
     
@@ -583,11 +583,11 @@ GpuEngineImpl::init(bool headless, int width, int height) {
     BindGroupLayoutDescriptor bindGroupLayoutDesc1{};
     bindGroupLayoutDesc1.entryCount = 1; // todo take from data struct
     bindGroupLayoutDesc1.entries =  bindingLayouts2;
-    materialBindGroupLayout = device.createBindGroupLayout(bindGroupLayoutDesc1);
+    materialBindGroupLayout = device().createBindGroupLayout(bindGroupLayoutDesc1);
         
 #ifdef WEBGPU_BACKEND_DAWN
         // Check for pending error callbacks
-        device.tick();
+        device_.tick();
 #endif
 
 
@@ -602,18 +602,18 @@ GpuEngineImpl::init(bool headless, int width, int height) {
 
 
         // Pipeline layout
-        PipelineLayout layout = device.createPipelineLayout(layoutDesc);
+        PipelineLayout layout = device_.createPipelineLayout(layoutDesc);
         pipelineDesc.layout = layout;
     }
     
 #ifdef WEBGPU_BACKEND_DAWN
         // Check for pending error callbacks
-        device.tick();
+        device_.tick();
 #endif
 
 
     AD_LOG(info) << "Creating Render pipeline";
-    pipeline = device.createRenderPipeline(pipelineDesc);
+    pipeline = device_.createRenderPipeline(pipelineDesc);
     AD_LOG(info) << "Render pipeline: " << pipeline;
 
     // not really needed here first thing done when rendering a frame
@@ -666,7 +666,7 @@ GpuEngineImpl::init(bool headless, int width, int height) {
             samplerDesc.lodMaxClamp = 1.0f;
             samplerDesc.compare = CompareFunction::Undefined;
             samplerDesc.maxAnisotropy = 1;
-            Sampler sampler0_ = device.createSampler(samplerDesc);
+            Sampler sampler0_ = device_.createSampler(samplerDesc);
 
             bindings[3].binding = 3;
             bindings[3].sampler = sampler0_;
@@ -677,18 +677,18 @@ GpuEngineImpl::init(bool headless, int width, int height) {
         bindGroupDesc.layout = bindGroupLayout;
         bindGroupDesc.entryCount = 4;
         bindGroupDesc.entries = bindings;
-        bindGroup = device.createBindGroup(bindGroupDesc);
+        bindGroup = device_.createBindGroup(bindGroupDesc);
     }
 
 #ifdef WEBGPU_BACKEND_DAWN
         // Check for pending error callbacks
-        device.tick();
+        device_.tick();
 #endif
 
     // this is only for main window
 
     if(headless_) {
-        pixelGetter_ = artd::ObjectPtr<PixelReader>::make(device, width_,height_);
+        pixelGetter_ = artd::ObjectPtr<PixelReader>::make(device_, width_,height_);
         pixelUnLockLock_.signal(); // start enabled !!
     }
 
@@ -726,7 +726,7 @@ GpuEngineImpl::createMaterialBindGroup(Material *forM) {
     bindGroupDesc.entryCount = 1;
     bindGroupDesc.entries = bindings;
 
-    return(device.createBindGroup(bindGroupDesc));
+    return(device().createBindGroup(bindGroupDesc));
 }
 
 void
@@ -955,7 +955,7 @@ GpuEngineImpl::renderFrame()  {
     
 #ifdef WEBGPU_BACKEND_DAWN
         // Check for pending error callbacks
-        device.tick();
+        device_.tick();
 #endif
    
 
@@ -968,7 +968,7 @@ GpuEngineImpl::renderFrame()  {
 
     CommandEncoderDescriptor commandEncoderDesc;
     commandEncoderDesc.label = "Command Encoder";
-    CommandEncoder encoder = device.createCommandEncoder(commandEncoderDesc);
+    CommandEncoder encoder = device_.createCommandEncoder(commandEncoderDesc);
 
     RenderPassDescriptor renderPassDesc{};
 
@@ -1064,7 +1064,7 @@ GpuEngineImpl::renderFrame()  {
 
 #ifdef WEBGPU_BACKEND_DAWN
         // Check for pending error callbacks
-        device.tick();
+        device_.tick();
 #endif
     return(0);
 }

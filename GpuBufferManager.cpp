@@ -406,7 +406,7 @@ class ARTD_API_GPU_ENGINE GpuBufferManagerImpl
     std::vector<ManagedGpuBuffer*> gpuBuffers_;
 
     INL Device device() {
-        return(owner_.device);
+        return(owner_.device_);
     }
 
     void disposeBuffer(Buffer &b) {
