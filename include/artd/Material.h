@@ -5,6 +5,7 @@
 #include "artd/Color3f.h"
 #include "artd/ObjectBase.h"
 #include "artd/IntrusiveList.h"
+#include "artd/SceneObject.h"
 
 ARTD_BEGIN
 
@@ -25,7 +26,8 @@ static_assert(sizeof(MaterialShaderData) % 16 == 0);
 class GpuEngineImpl;
 
 class ARTD_API_GPU_ENGINE Material
-    : public DlNode  // for attaching to scene's material list
+    : public SceneObject
+    , public DlNode  // for attaching to scene's material list
 {
     friend class GpuEngineImpl;
 

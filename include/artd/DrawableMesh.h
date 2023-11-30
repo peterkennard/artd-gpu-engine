@@ -7,7 +7,8 @@ class BufferChunk;
 
 #define INL ARTD_ALWAYS_INLINE
 
-class DrawableMesh
+class ARTD_API_GPU_ENGINE DrawableMesh
+    : public SceneObject
 {
 public:
 

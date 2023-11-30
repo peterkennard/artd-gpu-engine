@@ -2,6 +2,9 @@
 
 ARTD_BEGIN
 
+SceneObject::~SceneObject() {
+}
+
 SceneNode::~SceneNode() {
     if(hasParent()) {
         parent_->removeChild(this);

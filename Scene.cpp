@@ -46,7 +46,7 @@ public:
         : public DlNode
     {
     public:
-        TaskEntry(ObjectPtr<AnimationTask> task, SceneNode *owner)
+        TaskEntry(ObjectPtr<AnimationTask> task, SceneObject *owner)
             : task_(task)
             , owner_(owner)
         {
@@ -74,7 +74,7 @@ public:
             }
         }
         ObjectPtr<AnimationTask> task_;
-        SceneNode *owner_;
+        SceneObject *owner_;
         TaskEntry *nextOwned_ = nullptr;
 
         INL bool tick(AnimationTaskContext &tc) {
@@ -192,10 +192,10 @@ public:
         }
     }
     
-//    void addTask(SceneNode *owner, AnimationFunction task) {
+//    void addTask(SceneObject *owner, AnimationFunction task) {
 //        list_.addHead(new TaskEntry(task,owner));
 //    }
-    void addTask(SceneNode *owner, ObjectPtr<AnimationTask> task) {
+    void addTask(SceneObject *owner, ObjectPtr<AnimationTask> task) {
         list_.addHead(new TaskEntry(task,owner));
     }
 };
@@ -332,7 +332,7 @@ Scene::onNodeDetached(SceneNode *n) {
     }
 }
 
-void Scene::addAnimationTask(SceneNode *owner, ObjectPtr<AnimationTask> task) {
+void Scene::addAnimationTask(SceneObject *owner, ObjectPtr<AnimationTask> task) {
     animationTasks_->addTask(owner, task);
 }
 

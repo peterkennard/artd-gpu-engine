@@ -20,7 +20,7 @@ class CameraNode;
 
 class AnimationTaskContext
 {
-    SceneNode *owner_;
+    SceneObject *owner_;
     friend AnimationTaskList;
 protected:
     TimingContext timing_;
@@ -31,7 +31,7 @@ public:
     INL const TimingContext &timing() const {
         return(timing_);
     }
-    INL SceneNode *owner() {
+    INL SceneObject *owner() {
         return(owner_);
     }
 };
@@ -127,7 +127,7 @@ public:
     void setBackgroundColor(Color4f &color);
     void setCurrentCamera(ObjectPtr<CameraNode> &camera);
 
-    void addAnimationTask(SceneNode *owner, ObjectPtr<AnimationTask> task);
+    void addAnimationTask(SceneObject *owner, ObjectPtr<AnimationTask> task);
     
     // just syntactical convenience does not hold a reference to the owner.
     template<class NodeT>
